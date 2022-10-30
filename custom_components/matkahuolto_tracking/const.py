@@ -1,0 +1,12 @@
+DOMAIN = "matkahuolto_tracking"
+WWW_SERVICE_BASE_URL = "https://wwwservice.matkahuolto.fi"
+PATH_GET_SHIPMENTS = "/history/parcel/received/?language="
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.5249.62 Safari/537.36"
+LANGUAGES = ["fi", "en"]
+CONF_USERNAME = "username"
+CONF_PASSWORD = "password"
+CONF_LANGUAGE = "language"
+CONF_PRIORITIZE_UNDELIVERED = "prioritize_undelivered"
+CONF_MAX_SHIPMENTS = "max_shipments"
+CONF_STALE_SHIPMENT_DAY_LIMIT = "stale_shipment_day_limit"
+CONF_COMPLETED_SHIPMENT_DAYS_SHOWN = "completed_shipment_day_shown"

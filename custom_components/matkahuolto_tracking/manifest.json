@@ -1,0 +1,11 @@
+{
+  "codeowners": ["@jesmak"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/jesmak/matkahuolto_tracking",
+  "domain": "matkahuolto_tracking",
+  "iot_class": "cloud_polling",
+  "name": "Matkahuolto package tracking",
+  "requirements": [],
+  "version": "1.0.0"
+}

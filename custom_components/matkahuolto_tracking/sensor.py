@@ -3,7 +3,6 @@ import logging
 from datetime import (timedelta, datetime)
 from typing import Any, Callable, Dict, Optional
 
-import pytz
 from aiohttp import ClientError
 
 from homeassistant import config_entries, core

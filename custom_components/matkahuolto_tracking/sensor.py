@@ -132,7 +132,6 @@ class MatkahuoltoSensor(Entity):
 
             latest_timestamp = None
 
-            package_data = []
             delivered_packages = []
             undelivered_packages = []
 
@@ -146,33 +145,19 @@ class MatkahuoltoSensor(Entity):
                 delta = now - last_status_change
 
                 if status != 0 and delta.days <= self._stale_shipment_day_limit:
-                    if self._prioritize_undelivered:
-                        add_package(undelivered_packages, shipment, status)
-                    elif len(package_data) < self._max_shipments:
-                        add_package(package_data, shipment, status)
+                    add_package(undelivered_packages, shipment, status)
+                elif status == 0 and delta.days <= self._completed_shipment_days_shown:
+                    add_package(delivered_packages, shipment, status)
 
-                if status == 0 and delta.days <= self._completed_shipment_days_shown:
-                    if self._prioritize_undelivered:
-                        add_package(delivered_packages, shipment, status)
-                    elif len(package_data) < self._max_shipments:
-                        add_package(package_data, shipment, status)
+            delivered_packages.sort(key=lambda x: x[ATTR_LATEST_EVENT_DATE], reverse=True)
+            undelivered_packages.sort(key=lambda x: x[ATTR_LATEST_EVENT_DATE], reverse=True)
 
-            if self._prioritize_undelivered:
-                for package in undelivered_packages:
-                    if len(package_data) < self._max_shipments:
-                        package_data.append(package)
-                    else:
-                        break
+            package_data = undelivered_packages + delivered_packages
 
-                for package in delivered_packages:
-                    if len(package_data) < self._max_shipments:
-                        package_data.append(package)
-                    else:
-                        break
+            if not self._prioritize_undelivered:
+                package_data.sort(key=lambda x: x[ATTR_LATEST_EVENT_DATE], reverse=True)
 
-            package_data.sort(key=lambda x: x[ATTR_LATEST_EVENT_DATE], reverse=True)
-
-            self._attrs[ATTR_PACKAGES] = package_data
+            self._attrs[ATTR_PACKAGES] = package_data[0:min(len(package_data), self._max_shipments)]
             self._available = True
             self._state = latest_timestamp
 

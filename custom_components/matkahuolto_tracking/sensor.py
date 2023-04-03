@@ -137,6 +137,9 @@ class MatkahuoltoSensor(Entity):
 
             for shipment in data['shipments']:
 
+                if 'lastEvent' not in shipment:
+                    continue
+
                 latest_timestamp = shipment["lastEvent"]["time"] if latest_timestamp is None or shipment[
                     "lastEvent"]["time"] > latest_timestamp else latest_timestamp
                 status = map_raw_status(int(shipment["shipmentStatus"]))

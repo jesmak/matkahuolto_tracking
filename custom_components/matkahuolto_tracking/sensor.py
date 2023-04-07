@@ -135,16 +135,22 @@ class MatkahuoltoSensor(Entity):
             delivered_packages = []
             undelivered_packages = []
 
-            for shipment in data['shipments']:
+            timezone = datetime.now().astimezone().tzinfo
+            now = datetime.now(timezone)
 
-                if 'lastEvent' not in shipment:
+            for shipment in data["shipments"]:
+
+                if "lastEvent" in shipment:
+                    last_status_change = datetime.fromisoformat(str(shipment["lastEvent"]["time"])).replace(tzinfo=timezone)
+                elif "deliveryTime" in shipment and shipment["deliveryTime"] is not None:
+                    last_status_change = datetime.fromtimestamp(int(shipment["deliveryTime"] / 1000)).replace(tzinfo=timezone)
+                else:
                     continue
 
-                latest_timestamp = shipment["lastEvent"]["time"] if latest_timestamp is None or shipment[
-                    "lastEvent"]["time"] > latest_timestamp else latest_timestamp
+                if latest_timestamp is None or last_status_change > latest_timestamp:
+                    latest_timestamp = last_status_change
+
                 status = map_raw_status(int(shipment["shipmentStatus"]))
-                last_status_change = datetime.fromisoformat(str(shipment["lastEvent"]["time"])).replace(tzinfo=datetime.now().astimezone().tzinfo)
-                now = datetime.now(datetime.now().astimezone().tzinfo)
                 delta = now - last_status_change
 
                 if status != 0 and delta.days <= self._stale_shipment_day_limit:

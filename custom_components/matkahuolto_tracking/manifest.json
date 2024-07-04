@@ -7,5 +7,5 @@
   "iot_class": "cloud_polling",
   "name": "Matkahuolto package tracking",
   "requirements": [],
-  "version": "1.0.1"
+  "version": "1.0.2"
 }

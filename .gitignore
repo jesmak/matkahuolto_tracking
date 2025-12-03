@@ -121,5 +121,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-custom_components/matkahuolto_tracking/.idea/vcs.xml
+.idea/
 .vscode/settings.json

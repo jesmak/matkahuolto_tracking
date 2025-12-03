@@ -1,7 +1,7 @@
 {
   "config": {
     "error": {
-      "invalid_auth": "Kirjautuminen annetuilla tunnuksilla ei onnistunut",
+      "invalid_auth": "Annetut tunnukset eivät ole kelvollisia",
       "unknown": "Odottamaton virhe"
     },
     "step": {
@@ -9,8 +9,9 @@
         "title": "Matkahuolto paketinseuranta",
         "description": "Paketinseurannan asetukset",
         "data": {
-          "username": "Käyttäjätunnus",
-          "password": "Salasana",
+          "username": "Tilin tunniste (email)",
+          "access_token": "Pääsyavain",
+          "refresh_token": "Päivitysavain",
           "language": "Kieli",
           "prioritize_undelivered": "Priorisoi keskeneräisiä lähetyksiä",
           "max_shipments": "Näytettävien lähetysten enimmäismäärä",
@@ -22,7 +23,7 @@
   },
   "options": {
     "error": {
-      "invalid_auth": "Kirjautuminen annetuilla tunnuksilla ei onnistunut",
+      "invalid_auth": "Annetut tunnukset eivät ole kelvollisia",
       "unknown": "Odottamaton virhe"
     },
     "step": {
@@ -30,7 +31,8 @@
         "title": "Matkahuolto paketinseuranta",
         "description": "Paketinseurannan asetukset",
         "data": {
-          "password": "Salasana",
+          "access_token": "Pääsyavain",
+          "refresh_token": "Päivitysavain",
           "language": "Kieli",
           "prioritize_undelivered": "Priorisoi keskeneräisiä lähetyksiä",
           "max_shipments": "Näytettävien lähetysten enimmäismäärä",

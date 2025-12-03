@@ -1,7 +1,7 @@
 {
   "config": {
     "error": {
-      "invalid_auth": "Could not log in with provided credentials",
+      "invalid_auth": "Invalid tokens provided",
       "unknown": "Unknown error occured"
     },
     "step": {
@@ -9,8 +9,9 @@
         "title": "Matkahuolto package tracking",
         "description": "Package tracking settings",
         "data": {
-          "username": "Username",
-          "password": "Password",
+          "username": "Account identifier (email)",
+          "access_token": "Access token",
+          "refresh_token": "Refresh token",
           "language": "Language",
           "prioritize_undelivered": "Prioritize undelivered packages",
           "max_shipments": "Maximum number of shipments to show",
@@ -22,7 +23,7 @@
   },
   "options": {
     "error": {
-      "invalid_auth": "Could not log in with provided credentials",
+      "invalid_auth": "Invalid tokens provided",
       "unknown": "Unknown error occured"
     },
     "step": {
@@ -30,7 +31,8 @@
         "title": "Matkahuolto package tracking",
         "description": "Package tracking settings",
         "data": {
-          "password": "Password",
+          "access_token": "Access token",
+          "refresh_token": "Refresh token",
           "language": "Language",
           "prioritize_undelivered": "Prioritize undelivered packages",
           "max_shipments": "Maximum number of shipments to show",

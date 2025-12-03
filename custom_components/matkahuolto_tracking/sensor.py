@@ -14,7 +14,7 @@ from homeassistant.helpers.typing import (
 )
 
 from .session import MatkahuoltoSession
-from .const import PATH_GET_SHIPMENTS, CONF_USERNAME, CONF_PASSWORD, CONF_LANGUAGE, CONF_MAX_SHIPMENTS, \
+from .const import PATH_GET_SHIPMENTS, CONF_USERNAME, CONF_ACCESS_TOKEN, CONF_REFRESH_TOKEN, CONF_LANGUAGE, CONF_MAX_SHIPMENTS, \
     CONF_STALE_SHIPMENT_DAY_LIMIT, CONF_COMPLETED_SHIPMENT_DAYS_SHOWN, DOMAIN, CONF_PRIORITIZE_UNDELIVERED
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,8 +43,7 @@ async def async_setup_platform(
         async_add_entities: Callable,
         discovery_info: Optional[DiscoveryInfoType] = None,
 ) -> None:
-    session = MatkahuoltoSession(config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_LANGUAGE])
-    await hass.async_add_executor_job(session.authenticate)
+    session = MatkahuoltoSession(config[CONF_ACCESS_TOKEN], config[CONF_REFRESH_TOKEN], config[CONF_LANGUAGE])
     async_add_entities(
         [MatkahuoltoSensor(
             session,
@@ -58,13 +57,11 @@ async def async_setup_platform(
         update_before_add=True
     )
 
-
 async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities):
     config = hass.data[DOMAIN][config_entry.entry_id]
     if config_entry.options:
         config.update(config_entry.options)
-    session = MatkahuoltoSession(config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_LANGUAGE])
-    await hass.async_add_executor_job(session.authenticate)
+    session = MatkahuoltoSession(config[CONF_ACCESS_TOKEN], config[CONF_REFRESH_TOKEN], config[CONF_LANGUAGE])
     async_add_entities(
         [MatkahuoltoSensor(
             session,

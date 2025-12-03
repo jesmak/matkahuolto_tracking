@@ -10,13 +10,15 @@ from homeassistant.exceptions import HomeAssistantError
 from .const import (
     DOMAIN,
     CONF_USERNAME,
-    CONF_PASSWORD,
+    CONF_ACCESS_TOKEN,
+    CONF_REFRESH_TOKEN,
     CONF_LANGUAGE,
     CONF_MAX_SHIPMENTS,
     CONF_STALE_SHIPMENT_DAY_LIMIT,
     CONF_COMPLETED_SHIPMENT_DAYS_SHOWN,
     LANGUAGES,
-    CONF_PRIORITIZE_UNDELIVERED
+    CONF_PRIORITIZE_UNDELIVERED,
+    PATH_GET_USER
 )
 from .session import MatkahuoltoException, MatkahuoltoSession
 
@@ -25,7 +27,8 @@ _LOGGER = logging.getLogger(__name__)
 CONFIGURE_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): cv.string,
-        vol.Required(CONF_PASSWORD): cv.string,
+        vol.Required(CONF_ACCESS_TOKEN): cv.string,
+        vol.Required(CONF_REFRESH_TOKEN): cv.string,
         vol.Required(CONF_LANGUAGE): vol.All(cv.string, vol.In(LANGUAGES)),
         vol.Required(CONF_PRIORITIZE_UNDELIVERED, default=True): cv.boolean,
         vol.Required(CONF_MAX_SHIPMENTS, default=5): cv.positive_int,
@@ -36,7 +39,9 @@ CONFIGURE_SCHEMA = vol.Schema(
 
 RECONFIGURE_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_PASSWORD): cv.string,
+        vol.Required(CONF_USERNAME): cv.string,
+        vol.Required(CONF_ACCESS_TOKEN): cv.string,
+        vol.Required(CONF_REFRESH_TOKEN): cv.string,
         vol.Required(CONF_LANGUAGE): vol.All(cv.string, vol.In(LANGUAGES)),
         vol.Required(CONF_PRIORITIZE_UNDELIVERED): cv.boolean,
         vol.Required(CONF_MAX_SHIPMENTS): cv.positive_int,
@@ -48,8 +53,8 @@ RECONFIGURE_SCHEMA = vol.Schema(
 
 async def validate_input(hass: HomeAssistant, data: dict[str, any]) -> str:
     try:
-        session = MatkahuoltoSession(data[CONF_USERNAME], data[CONF_PASSWORD], data[CONF_LANGUAGE])
-        await hass.async_add_executor_job(session.authenticate)
+        session = MatkahuoltoSession(data[CONF_ACCESS_TOKEN], data[CONF_REFRESH_TOKEN], data[CONF_LANGUAGE])
+        await hass.async_add_executor_job(session.call_api, PATH_GET_USER)
 
     except MatkahuoltoException:
         raise InvalidAuth
@@ -58,7 +63,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, any]) -> str:
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    VERSION = 1
+    VERSION = 2
 
     async def async_step_user(self, user_input: dict[str, any] = None) -> FlowResult:
         if user_input is None:
@@ -94,7 +99,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             return self.async_show_form(
                 step_id="init", data_schema=vol.Schema(
                     {
-                        vol.Required(CONF_PASSWORD, default=self._config_entry.data.get(CONF_PASSWORD)): cv.string,
+                        vol.Required(CONF_ACCESS_TOKEN, default=self._config_entry.data.get(CONF_ACCESS_TOKEN)): cv.string,
+                        vol.Required(CONF_REFRESH_TOKEN, default=self._config_entry.data.get(CONF_REFRESH_TOKEN)): cv.string,
                         vol.Required(CONF_LANGUAGE, default=self._config_entry.data.get(CONF_LANGUAGE)): vol.All(cv.string, vol.In(LANGUAGES)),
                         vol.Required(CONF_PRIORITIZE_UNDELIVERED, default=self._config_entry.data.get(CONF_PRIORITIZE_UNDELIVERED)): cv.boolean,
                         vol.Optional(CONF_MAX_SHIPMENTS, default=self._config_entry.data.get(CONF_MAX_SHIPMENTS)): cv.positive_int,

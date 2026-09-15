@@ -1,12 +1,15 @@
 {
-  "codeowners": ["@jesmak"],
-  "config_flow": true,
-  "dependencies": ["http"],
-  "documentation": "https://github.com/jesmak/matkahuolto_tracking",
   "domain": "matkahuolto_tracking",
-  "iot_class": "cloud_polling",
   "name": "Matkahuolto package tracking",
+  "codeowners": [
+    "@jesmak"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/jesmak/matkahuolto_tracking",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/jesmak/matkahuolto_tracking/issues",
   "requirements": [],
-  "version": "1.0.3",
-  "oauth2": true
+  "version": "2.0.0"
 }

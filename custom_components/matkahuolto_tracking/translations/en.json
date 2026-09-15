@@ -1,44 +1,80 @@
 {
   "config": {
-    "error": {
-      "invalid_auth": "Invalid tokens provided",
-      "unknown": "Unknown error occured"
-    },
     "step": {
       "user": {
         "title": "Matkahuolto package tracking",
-        "description": "Package tracking settings",
+        "description": "The coming and recently delivered packages of your matkahuolto.fi account. The access and refresh tokens are copied from your browser after logging in to matkahuolto.fi; the integration's README shows how.",
         "data": {
-          "username": "Account identifier (email)",
+          "username": "Email address",
           "access_token": "Access token",
           "refresh_token": "Refresh token",
           "language": "Language",
-          "prioritize_undelivered": "Prioritize undelivered packages",
-          "max_shipments": "Maximum number of shipments to show",
-          "stale_shipment_day_limit": "How many days until stale shipments are hidden",
-          "completed_shipment_day_shown": "How many days until completed shipments are hidden"
+          "prioritize_undelivered": "Undelivered packages first",
+          "max_shipments": "Maximum number of packages",
+          "stale_shipment_day_limit": "Days until undelivered packages are hidden",
+          "completed_shipment_day_shown": "Days until delivered packages are hidden"
+        },
+        "data_description": {
+          "username": "The email address of your matkahuolto.fi account. The sensor is named after it.",
+          "access_token": "The access token from the login response, without quotation marks.",
+          "refresh_token": "The refresh token from the same response. It renews the access token when that expires.",
+          "language": "Language of the package event descriptions.",
+          "prioritize_undelivered": "When there are more packages than the maximum, undelivered ones are listed before delivered ones.",
+          "max_shipments": "How many packages the sensor lists.",
+          "stale_shipment_day_limit": "Counted from the package's latest event. Some packages stay in delivery for good.",
+          "completed_shipment_day_shown": "Counted from the delivery."
+        }
+      },
+      "reauth_confirm": {
+        "title": "New tokens for {username}",
+        "description": "Matkahuolto no longer accepts the tokens. Log in to matkahuolto.fi and copy new ones from your browser, as the integration's README shows.",
+        "data": {
+          "access_token": "Access token",
+          "refresh_token": "Refresh token"
+        },
+        "data_description": {
+          "access_token": "The access token from the login response, without quotation marks.",
+          "refresh_token": "The refresh token from the same response. It renews the access token when that expires."
+        }
+      },
+      "reconfigure": {
+        "title": "Matkahuolto package tracking",
+        "description": "Tokens and settings of {username}.",
+        "data": {
+          "access_token": "Access token",
+          "refresh_token": "Refresh token",
+          "language": "Language",
+          "prioritize_undelivered": "Undelivered packages first",
+          "max_shipments": "Maximum number of packages",
+          "stale_shipment_day_limit": "Days until undelivered packages are hidden",
+          "completed_shipment_day_shown": "Days until delivered packages are hidden"
+        },
+        "data_description": {
+          "access_token": "The access token from the login response, without quotation marks.",
+          "refresh_token": "The refresh token from the same response. It renews the access token when that expires.",
+          "language": "Language of the package event descriptions.",
+          "prioritize_undelivered": "When there are more packages than the maximum, undelivered ones are listed before delivered ones.",
+          "max_shipments": "How many packages the sensor lists.",
+          "stale_shipment_day_limit": "Counted from the package's latest event. Some packages stay in delivery for good.",
+          "completed_shipment_day_shown": "Counted from the delivery."
         }
       }
+    },
+    "error": {
+      "invalid_auth": "Matkahuolto didn't accept the tokens. Copy new ones from matkahuolto.fi.",
+      "cannot_connect": "Matkahuolto couldn't be reached. Try again in a moment."
+    },
+    "abort": {
+      "already_configured": "This account has already been added.",
+      "reauth_successful": "The new tokens work and have been saved.",
+      "reconfigure_successful": "Settings saved."
     }
   },
-  "options": {
-    "error": {
-      "invalid_auth": "Invalid tokens provided",
-      "unknown": "Unknown error occured"
-    },
-    "step": {
-      "init": {
-        "title": "Matkahuolto package tracking",
-        "description": "Package tracking settings",
-        "data": {
-          "access_token": "Access token",
-          "refresh_token": "Refresh token",
-          "language": "Language",
-          "prioritize_undelivered": "Prioritize undelivered packages",
-          "max_shipments": "Maximum number of shipments to show",
-          "stale_shipment_day_limit": "How many days until stale shipments are hidden",
-          "completed_shipment_day_shown": "How many days until completed shipments are hidden"
-        }
+  "selector": {
+    "language": {
+      "options": {
+        "fi": "Suomi",
+        "en": "English"
       }
     }
   }

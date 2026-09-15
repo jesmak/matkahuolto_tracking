@@ -1,44 +1,80 @@
 {
   "config": {
-    "error": {
-      "invalid_auth": "Annetut tunnukset eivät ole kelvollisia",
-      "unknown": "Odottamaton virhe"
-    },
     "step": {
       "user": {
         "title": "Matkahuolto paketinseuranta",
-        "description": "Paketinseurannan asetukset",
+        "description": "matkahuolto.fi-tilisi tulevat ja äskettäin toimitetut paketit. Pääsy- ja päivitysavain kopioidaan selaimesta, kun olet kirjautunut matkahuolto.fi-palveluun. Integraation README kertoo, miten se tehdään.",
         "data": {
-          "username": "Tilin tunniste (email)",
+          "username": "Sähköpostiosoite",
           "access_token": "Pääsyavain",
           "refresh_token": "Päivitysavain",
           "language": "Kieli",
-          "prioritize_undelivered": "Priorisoi keskeneräisiä lähetyksiä",
-          "max_shipments": "Näytettävien lähetysten enimmäismäärä",
-          "stale_shipment_day_limit": "Monenko päivän jälkeen jämähtänyt lähetys piilotetaan",
-          "completed_shipment_day_shown": "Montako päivää toimitetut lähetykset näytetään"
+          "prioritize_undelivered": "Toimittamattomat paketit ensin",
+          "max_shipments": "Pakettien enimmäismäärä",
+          "stale_shipment_day_limit": "Päiviä, kunnes toimittamaton paketti piilotetaan",
+          "completed_shipment_day_shown": "Päiviä, kunnes toimitettu paketti piilotetaan"
+        },
+        "data_description": {
+          "username": "matkahuolto.fi-tilisi sähköpostiosoite. Sensori nimetään sen mukaan.",
+          "access_token": "Kirjautumisvastauksen pääsyavain ilman lainausmerkkejä.",
+          "refresh_token": "Saman vastauksen päivitysavain. Sillä haetaan uusi pääsyavain, kun vanha vanhenee.",
+          "language": "Kieli, jolla pakettien tapahtumat kuvataan.",
+          "prioritize_undelivered": "Kun paketteja on enemmän kuin enimmäismäärä, toimittamattomat näytetään ennen toimitettuja.",
+          "max_shipments": "Kuinka monta pakettia sensori listaa.",
+          "stale_shipment_day_limit": "Lasketaan paketin viimeisimmästä tapahtumasta. Jotkin paketit jäävät jakeluun pysyvästi.",
+          "completed_shipment_day_shown": "Lasketaan toimituksesta."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Uudet avaimet tilille {username}",
+        "description": "Matkahuolto ei enää hyväksy avaimia. Kirjaudu matkahuolto.fi-palveluun ja kopioi uudet avaimet selaimesta integraation READMEn ohjeen mukaan.",
+        "data": {
+          "access_token": "Pääsyavain",
+          "refresh_token": "Päivitysavain"
+        },
+        "data_description": {
+          "access_token": "Kirjautumisvastauksen pääsyavain ilman lainausmerkkejä.",
+          "refresh_token": "Saman vastauksen päivitysavain. Sillä haetaan uusi pääsyavain, kun vanha vanhenee."
+        }
+      },
+      "reconfigure": {
+        "title": "Matkahuolto paketinseuranta",
+        "description": "Tilin {username} avaimet ja asetukset.",
+        "data": {
+          "access_token": "Pääsyavain",
+          "refresh_token": "Päivitysavain",
+          "language": "Kieli",
+          "prioritize_undelivered": "Toimittamattomat paketit ensin",
+          "max_shipments": "Pakettien enimmäismäärä",
+          "stale_shipment_day_limit": "Päiviä, kunnes toimittamaton paketti piilotetaan",
+          "completed_shipment_day_shown": "Päiviä, kunnes toimitettu paketti piilotetaan"
+        },
+        "data_description": {
+          "access_token": "Kirjautumisvastauksen pääsyavain ilman lainausmerkkejä.",
+          "refresh_token": "Saman vastauksen päivitysavain. Sillä haetaan uusi pääsyavain, kun vanha vanhenee.",
+          "language": "Kieli, jolla pakettien tapahtumat kuvataan.",
+          "prioritize_undelivered": "Kun paketteja on enemmän kuin enimmäismäärä, toimittamattomat näytetään ennen toimitettuja.",
+          "max_shipments": "Kuinka monta pakettia sensori listaa.",
+          "stale_shipment_day_limit": "Lasketaan paketin viimeisimmästä tapahtumasta. Jotkin paketit jäävät jakeluun pysyvästi.",
+          "completed_shipment_day_shown": "Lasketaan toimituksesta."
         }
       }
+    },
+    "error": {
+      "invalid_auth": "Matkahuolto ei hyväksynyt avaimia. Kopioi uudet matkahuolto.fi-palvelusta.",
+      "cannot_connect": "Matkahuoltoon ei saatu yhteyttä. Yritä hetken kuluttua uudelleen."
+    },
+    "abort": {
+      "already_configured": "Tämä tili on jo lisätty.",
+      "reauth_successful": "Uudet avaimet toimivat, ja ne on tallennettu.",
+      "reconfigure_successful": "Asetukset tallennettu."
     }
   },
-  "options": {
-    "error": {
-      "invalid_auth": "Annetut tunnukset eivät ole kelvollisia",
-      "unknown": "Odottamaton virhe"
-    },
-    "step": {
-      "init": {
-        "title": "Matkahuolto paketinseuranta",
-        "description": "Paketinseurannan asetukset",
-        "data": {
-          "access_token": "Pääsyavain",
-          "refresh_token": "Päivitysavain",
-          "language": "Kieli",
-          "prioritize_undelivered": "Priorisoi keskeneräisiä lähetyksiä",
-          "max_shipments": "Näytettävien lähetysten enimmäismäärä",
-          "stale_shipment_day_limit": "Monenko päivän jälkeen jämähtänyt lähetys piilotetaan",
-          "completed_shipment_day_shown": "Montako päivää toimitetut lähetykset näytetään"
-        }
+  "selector": {
+    "language": {
+      "options": {
+        "fi": "Suomi",
+        "en": "English"
       }
     }
   }

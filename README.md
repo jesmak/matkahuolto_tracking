@@ -97,14 +97,7 @@ unavailable while Matkahuolto can't be reached.
 
 ## Upgrading from 1.x
 
-Nothing needs to be done: the account, the sensor and its attributes carry over. What changes:
-
-- **Settings** are changed with **Reconfigure** instead of the options dialog.
-- **Tokens:** a renewed access token is saved, so a restart doesn't start with an expired one. When the refresh token
-  stops working, Home Assistant asks for new tokens instead of the sensor just failing.
-- **The sensor** is a timestamp sensor, its packages are no longer stored in the recorder, and `latest_event_date`
-  includes the time zone. Event times are Finnish time whatever Home Assistant's time zone is.
-- **Packages without events,** such as some delivered ones, no longer stop the sensor from updating.
+Nothing needs to be done: the account, the sensor and its attributes carry over.
 
 ## Data
 

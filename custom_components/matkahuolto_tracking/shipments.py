@@ -16,10 +16,12 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_COMPLETED_SHIPMENT_DAYS_SHOWN,
+    CONF_INCLUDE_PICKUP_DETAILS,
     CONF_MAX_SHIPMENTS,
     CONF_PRIORITIZE_UNDELIVERED,
     CONF_STALE_SHIPMENT_DAY_LIMIT,
     DEFAULT_COMPLETED_SHIPMENT_DAYS_SHOWN,
+    DEFAULT_INCLUDE_PICKUP_DETAILS,
     DEFAULT_MAX_SHIPMENTS,
     DEFAULT_PRIORITIZE_UNDELIVERED,
     DEFAULT_STALE_SHIPMENT_DAY_LIMIT,
@@ -44,6 +46,8 @@ class PackageSettings:
     # Undelivered packages whose latest event is older are hidden: some stay "in delivery" for good.
     stale_shipment_day_limit: int
     completed_shipment_days_shown: int
+    # The pickup point and the code that collects the package, which not everyone wants on a dashboard.
+    include_pickup_details: bool
 
     @classmethod
     def from_data(cls, data: Mapping[str, Any]) -> PackageSettings:
@@ -54,6 +58,7 @@ class PackageSettings:
             completed_shipment_days_shown=int(
                 data.get(CONF_COMPLETED_SHIPMENT_DAYS_SHOWN, DEFAULT_COMPLETED_SHIPMENT_DAYS_SHOWN)
             ),
+            include_pickup_details=bool(data.get(CONF_INCLUDE_PICKUP_DETAILS, DEFAULT_INCLUDE_PICKUP_DETAILS)),
         )
 
 
@@ -96,9 +101,9 @@ def build_packages(shipments: Iterable[Mapping[str, Any]], settings: PackageSett
         status = map_raw_status(raw_status)
         age_days = (now - changed).days
         if status != STATUS_DELIVERED and age_days <= settings.stale_shipment_day_limit:
-            undelivered.append((changed, package(shipment, status, changed)))
+            undelivered.append((changed, package(shipment, status, changed, settings)))
         elif status == STATUS_DELIVERED and age_days <= settings.completed_shipment_days_shown:
-            delivered.append((changed, package(shipment, status, changed)))
+            delivered.append((changed, package(shipment, status, changed, settings)))
 
     undelivered.sort(key=change_time, reverse=True)
     delivered.sort(key=change_time, reverse=True)
@@ -121,10 +126,11 @@ def status_change_time(shipment: Mapping[str, Any]) -> datetime | None:
     return from_milliseconds(delivery_time) if delivery_time is not None else None
 
 
-def package(shipment: Mapping[str, Any], status: int, changed: datetime) -> dict[str, Any]:
+def package(shipment: Mapping[str, Any], status: int, changed: datetime, settings: PackageSettings) -> dict[str, Any]:
     event = shipment.get("lastEvent")
     event = event if isinstance(event, Mapping) else {}
     shipment_date = parse_int(shipment.get("shipmentDate"))
+    point = shipment.get("pickupPoint") if isinstance(shipment.get("pickupPoint"), Mapping) else {}
     return {
         "origin": shipment.get("senderName"),
         "origin_city": shipment.get("senderCity"),
@@ -138,8 +144,46 @@ def package(shipment: Mapping[str, Any], status: int, changed: datetime) -> dict
         "latest_event_city": event.get("place"),
         "latest_event_country": "FI",
         "latest_event_date": changed.isoformat(),
+        "estimated_delivery": moment(shipment.get("etaDate")),
+        "pickup_deadline": moment(shipment.get("storedUntil")),
+        "weight": number(shipment.get("shipmentWeight")),
+        "package_count": parse_int(shipment.get("parcelCount")),
+        "pickup_point": pickup_point(point, shipment) if settings.include_pickup_details else None,
+        "pickup_code": pickup_code(shipment) if settings.include_pickup_details else None,
         "source": "Matkahuolto",
     }
+
+
+def moment(value: Any) -> str | None:
+    """A time Matkahuolto gives in milliseconds, as an ISO 8601 string."""
+    milliseconds = parse_int(value)
+    return from_milliseconds(milliseconds).isoformat() if milliseconds is not None else None
+
+
+def pickup_point(point: Mapping[str, Any], shipment: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Where the package is picked up, from the pickup point when there is one, else the destination."""
+    found = {
+        "name": point.get("officeName") or shipment.get("destinationPlaceName"),
+        "street": point.get("officeStreetAddress"),
+        "postal_code": point.get("officePostalCode"),
+        "city": point.get("officeCity") or shipment.get("receiverCity"),
+        "type": point.get("officeType") or shipment.get("destinationPlaceType"),
+        "available": None,
+    }
+    return found if any(value for value in found.values()) else None
+
+
+def pickup_code(shipment: Mapping[str, Any]) -> str | None:
+    """The code that collects the package."""
+    code = shipment.get("deliveryPinCode")
+    return str(code) if code else None
+
+
+def number(value: Any) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def parse_time(value: Any) -> datetime | None:

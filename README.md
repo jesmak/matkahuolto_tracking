@@ -18,9 +18,8 @@ A custom component that lists the coming and recently delivered packages of a
 [matkahuolto.fi](https://www.matkahuolto.fi/) account. There's no need to add packages by hand: the list comes from
 the packages sent to your account, and it's updated every 10 minutes.
 
-The sensor's attributes list the packages in the same format as
-[Posti package tracking](https://github.com/jesmak/posti_tracking), so
-[package-tracker-card](https://github.com/jesmak/package-tracker-card) can show packages from both.
+The sensor lists the packages in the format [package-tracker-card](https://github.com/jesmak/package-tracker-card)
+reads, so the card can show them together with packages from other tracking integrations.
 
 ## Installation
 
@@ -29,7 +28,8 @@ The sensor's attributes list the packages in the same format as
 1. Add this repository to HACS custom repositories with type **Integration**
 2. Search for Matkahuolto package tracking in HACS and download it
 3. Restart Home Assistant
-4. Add the integration in Settings › Devices & services, with the tokens described below
+4. Add the integration in Settings › Devices & services and log in with your matkahuolto.fi email address and
+   password
 
 ### Manual
 
@@ -37,38 +37,28 @@ The sensor's attributes list the packages in the same format as
 2. Copy the `custom_components/matkahuolto_tracking` folder to your Home Assistant installation's
    `config/custom_components` folder
 3. Restart Home Assistant
-4. Add the integration in Settings › Devices & services, with the tokens described below
+4. Add the integration in Settings › Devices & services and log in with your matkahuolto.fi email address and
+   password
 
-## Getting the tokens
+## Logging in
 
-The integration signs in with the tokens of a login to matkahuolto.fi, not with a password. You copy them from your
-browser once. After that the integration renews the access token by itself, and when the refresh token eventually stops
-working too, Home Assistant asks for new tokens on the integration page.
+The integration logs in with the email address and password of your matkahuolto.fi account, the way the Matkahuolto
+Paketit app does. The website's login needs a reCAPTCHA; the app's doesn't, so nothing has to be copied from a
+browser.
 
-This guide uses Google Chrome. With another browser, adjust accordingly.
+Home Assistant keeps the password, so that the integration can log in again by itself when its session runs out. It
+asks for the password only if Matkahuolto stops accepting it, for example after you change it.
 
-1. Go to matkahuolto.fi and log out if you are already logged in
-2. Open the developer tools by pressing F12
-3. Open the Network tab
-4. Enter `auth` in the filter field
-5. Log in to your matkahuolto.fi account
-6. Click the auth request that appears in the request list
-7. Open the Response tab of the request
-8. Copy the access token and refresh token values from the response into the integration's settings. Quotation marks
-   around the values don't matter; they are removed.
-
-<img width="886" height="501" alt="The access and refresh tokens in the login response, in Chrome's developer tools" src="https://github.com/user-attachments/assets/30cdd819-d1c7-4d57-a575-3a3a9240bb35" />
+Because the login imitates the app, a change at Matkahuolto's end can stop it. If the setup says Matkahuolto turned
+the login away, the integration needs an update.
 
 ## Settings
 
-Each account is added separately. To change its tokens or settings later, choose **Reconfigure** from the account's
-menu on the integration page.
+Each account is added separately. To change its settings, or to log in again with a new password, choose
+**Reconfigure** from the account's menu on the integration page.
 
 | Name                                       | Type    | Description                                                                       | Default                   |
 | ------------------------------------------ | ------- | --------------------------------------------------------------------------------- | ------------------------- |
-| Email address                              | string  | The email address of your matkahuolto.fi account. The sensor is named after it    |                           |
-| Access token                               | string  | The access token of your login                                                    |                           |
-| Refresh token                              | string  | The refresh token of your login                                                   |                           |
 | Language                                   | enum    | Language of the package event descriptions: `fi` or `en`                          | Home Assistant's language |
 | Undelivered packages first                 | boolean | When there are more packages than the maximum, undelivered ones are listed first  | on                        |
 | Maximum number of packages                 | number  | How many packages the sensor lists                                                | 5                         |
@@ -101,6 +91,7 @@ The `packages` attribute lists the packages, and each package has:
 | `pickup_point`                      | The pickup point, with **Pickup point and code** on          |
 | `pickup_code`                       | The code that collects the package, with the same setting on |
 | `source`                            | Always `Matkahuolto`                                         |
+| `tracking_url`                      | The package's page on matkahuolto.fi                         |
 
 | `status` | Meaning                 | Matkahuolto's codes |
 | -------- | ----------------------- | ------------------- |
@@ -181,8 +172,8 @@ python3.14 -m venv .venv
 | Path                           | What it contains                                          |
 | ------------------------------ | --------------------------------------------------------- |
 | `__init__.py`                  | Setup, and giving entries of earlier versions a unique id |
-| `config_flow.py`               | Adding an account, new tokens and changing settings       |
-| `api.py`                       | Matkahuolto's web service and renewing the access token   |
+| `config_flow.py`               | Logging in, logging in again and changing settings        |
+| `api.py`                       | Logging in, Matkahuolto's web service, renewing tokens    |
 | `coordinator.py`               | Fetching the packages every 10 minutes                    |
 | `shipments.py`                 | Turning shipments into the sensor's packages              |
 | `sensor.py`                    | The sensors: the account's own, and the counts            |

@@ -10,7 +10,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 
-from .const import CONF_USERNAME, DOMAIN
+from .const import CONF_ACCESS_TOKEN, CONF_REFRESH_TOKEN, CONF_USERNAME, DOMAIN
 from .coordinator import MatkahuoltoConfigEntry, MatkahuoltoCoordinator
 
 PLATFORMS = [Platform.EVENT, Platform.SENSOR]
@@ -32,12 +32,21 @@ async def async_unload_entry(hass: HomeAssistant, entry: MatkahuoltoConfigEntry)
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: MatkahuoltoConfigEntry) -> bool:
-    """Gives entries of 1.x versions with tokens a unique id: the account's email address.
+    """Brings entries of earlier versions up to date.
 
-    Entries from before tokens, with a password, can't be migrated: the account has to be added again.
+    Version 1 entries have an email address and password but no tokens. They get empty tokens, which
+    the first update finds refused, so it logs in with the password. Entries of 2.1 get a unique id:
+    the account's email address.
     """
-    if entry.version != 2:
+    if entry.version > 2:
         return False
+    if entry.version == 1:
+        hass.config_entries.async_update_entry(
+            entry,
+            data={CONF_ACCESS_TOKEN: "", CONF_REFRESH_TOKEN: "", **entry.data},
+            version=2,
+            minor_version=1,
+        )
     if entry.minor_version < 2:
         hass.config_entries.async_update_entry(
             entry, unique_id=entry.data[CONF_USERNAME].strip().lower(), minor_version=2

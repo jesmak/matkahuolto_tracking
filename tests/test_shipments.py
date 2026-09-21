@@ -65,6 +65,7 @@ def test_package_attributes() -> None:
         "pickup_point": None,
         "pickup_code": None,
         "source": "Matkahuolto",
+        "tracking_url": "https://www.matkahuolto.fi/seuranta?parcelNumber=MH0001",
     }
     # Without events, the delivery is the latest change.
     assert delivered_without_events["status"] == 0

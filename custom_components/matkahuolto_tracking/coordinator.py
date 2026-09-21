@@ -12,7 +12,15 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .api import MatkahuoltoAuthError, MatkahuoltoClient, MatkahuoltoError
-from .const import CONF_ACCESS_TOKEN, CONF_LANGUAGE, CONF_REFRESH_TOKEN, DOMAIN, UPDATE_INTERVAL
+from .const import (
+    CONF_ACCESS_TOKEN,
+    CONF_LANGUAGE,
+    CONF_PASSWORD,
+    CONF_REFRESH_TOKEN,
+    CONF_USERNAME,
+    DOMAIN,
+    UPDATE_INTERVAL,
+)
 from .shipments import Packages, PackageSettings, build_packages
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,17 +45,20 @@ class MatkahuoltoCoordinator(DataUpdateCoordinator[Packages]):
             entry.data[CONF_ACCESS_TOKEN],
             entry.data[CONF_REFRESH_TOKEN],
             entry.data[CONF_LANGUAGE],
-            self._save_access_token,
+            self._save_tokens,
+            entry.data[CONF_USERNAME],
+            entry.data.get(CONF_PASSWORD),
         )
 
     @callback
-    def _save_access_token(self, access_token: str) -> None:
-        """Keeps a refreshed access token, so that the next start doesn't begin with an expired one.
+    def _save_tokens(self, access_token: str, refresh_token: str) -> None:
+        """Keeps refreshed tokens, or those of a new login, so the next start doesn't begin with spent ones.
 
-        The entry has no update listener, so saving the token doesn't reload the integration.
+        The entry has no update listener, so saving the tokens doesn't reload the integration.
         """
         self.hass.config_entries.async_update_entry(
-            self.config_entry, data={**self.config_entry.data, CONF_ACCESS_TOKEN: access_token}
+            self.config_entry,
+            data={**self.config_entry.data, CONF_ACCESS_TOKEN: access_token, CONF_REFRESH_TOKEN: refresh_token},
         )
 
     async def _async_update_data(self) -> Packages:

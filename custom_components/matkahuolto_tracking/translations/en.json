@@ -2,12 +2,21 @@
   "config": {
     "step": {
       "user": {
-        "title": "Matkahuolto package tracking",
-        "description": "The coming and recently delivered packages of your matkahuolto.fi account. The access and refresh tokens are copied from your browser after logging in to matkahuolto.fi; the integration's README shows how.",
+        "title": "Log in to Matkahuolto",
+        "description": "The email address and password of your matkahuolto.fi account.",
         "data": {
           "username": "Email address",
-          "access_token": "Access token",
-          "refresh_token": "Refresh token",
+          "password": "Password"
+        },
+        "data_description": {
+          "username": "The sensor is named after it.",
+          "password": "Kept by Home Assistant, so it can log in again by itself when needed."
+        }
+      },
+      "settings": {
+        "title": "Settings",
+        "description": "Logged in as **{username}**. These can be changed later with Reconfigure.",
+        "data": {
           "language": "Language",
           "prioritize_undelivered": "Undelivered packages first",
           "max_shipments": "Maximum number of packages",
@@ -16,9 +25,6 @@
           "include_pickup_details": "Pickup point and code"
         },
         "data_description": {
-          "username": "The email address of your matkahuolto.fi account. The sensor is named after it.",
-          "access_token": "The access token from the login response, without quotation marks.",
-          "refresh_token": "The refresh token from the same response. It renews the access token when that expires.",
           "language": "Language of the package event descriptions.",
           "prioritize_undelivered": "When there are more packages than the maximum, undelivered ones are listed before delivered ones.",
           "max_shipments": "How many packages the sensor lists.",
@@ -28,23 +34,27 @@
         }
       },
       "reauth_confirm": {
-        "title": "New tokens for {username}",
-        "description": "Matkahuolto no longer accepts the tokens. Log in to matkahuolto.fi and copy new ones from your browser, as the integration's README shows.",
+        "title": "Log in again",
+        "description": "Matkahuolto no longer accepts the saved login of **{username}**. Enter the password.",
         "data": {
-          "access_token": "Access token",
-          "refresh_token": "Refresh token"
+          "password": "Password"
         },
         "data_description": {
-          "access_token": "The access token from the login response, without quotation marks.",
-          "refresh_token": "The refresh token from the same response. It renews the access token when that expires."
+          "password": "Kept by Home Assistant, so it can log in again by itself when needed."
         }
       },
       "reconfigure": {
         "title": "Matkahuolto package tracking",
-        "description": "Tokens and settings of {username}.",
+        "description": "**{username}**",
+        "menu_options": {
+          "reconfigure_settings": "Change settings",
+          "reconfigure_login": "Log in again"
+        }
+      },
+      "reconfigure_settings": {
+        "title": "Change settings",
+        "description": "**{username}**",
         "data": {
-          "access_token": "Access token",
-          "refresh_token": "Refresh token",
           "language": "Language",
           "prioritize_undelivered": "Undelivered packages first",
           "max_shipments": "Maximum number of packages",
@@ -53,8 +63,6 @@
           "include_pickup_details": "Pickup point and code"
         },
         "data_description": {
-          "access_token": "The access token from the login response, without quotation marks.",
-          "refresh_token": "The refresh token from the same response. It renews the access token when that expires.",
           "language": "Language of the package event descriptions.",
           "prioritize_undelivered": "When there are more packages than the maximum, undelivered ones are listed before delivered ones.",
           "max_shipments": "How many packages the sensor lists.",
@@ -62,16 +70,27 @@
           "completed_shipment_day_shown": "Counted from the delivery.",
           "include_pickup_details": "Add the pickup point and pickup code to package data."
         }
+      },
+      "reconfigure_login": {
+        "title": "Log in again",
+        "description": "The password of **{username}**, if it has changed.",
+        "data": {
+          "password": "Password"
+        },
+        "data_description": {
+          "password": "Kept by Home Assistant, so it can log in again by itself when needed."
+        }
       }
     },
     "error": {
-      "invalid_auth": "Matkahuolto didn't accept the tokens. Copy new ones from matkahuolto.fi.",
+      "invalid_auth": "Wrong email address or password.",
+      "login_rejected": "Matkahuolto turned the login away before checking the password. The integration may need an update.",
       "cannot_connect": "Matkahuolto couldn't be reached. Try again in a moment."
     },
     "abort": {
       "already_configured": "This account has already been added.",
-      "reauth_successful": "The new tokens work and have been saved.",
-      "reconfigure_successful": "Settings saved."
+      "reauth_successful": "Logged in again.",
+      "reconfigure_successful": "Saved."
     }
   },
   "selector": {

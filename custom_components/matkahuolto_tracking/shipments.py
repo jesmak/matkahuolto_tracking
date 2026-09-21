@@ -1,7 +1,7 @@
 """Turning the shipments of an account into the sensor's package list.
 
-The packages have the same attributes and statuses as in Posti package
-tracking, so package-tracker-card can list packages from both.
+The packages are in the format package-tracker-card reads, which other tracking
+integrations write too, so the card can list them together.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 from homeassistant.util import dt as dt_util
@@ -26,6 +27,7 @@ from .const import (
     DEFAULT_PRIORITIZE_UNDELIVERED,
     DEFAULT_STALE_SHIPMENT_DAY_LIMIT,
     TIME_ZONE,
+    TRACKING_URL,
 )
 
 FINNISH_TIME = ZoneInfo(TIME_ZONE)
@@ -131,12 +133,13 @@ def package(shipment: Mapping[str, Any], status: int, changed: datetime, setting
     event = event if isinstance(event, Mapping) else {}
     shipment_date = parse_int(shipment.get("shipmentDate"))
     point = shipment.get("pickupPoint") if isinstance(shipment.get("pickupPoint"), Mapping) else {}
+    shipment_number = shipment.get("shipmentNumber")
     return {
         "origin": shipment.get("senderName"),
         "origin_city": shipment.get("senderCity"),
         "destination": shipment.get("destinationPlaceName"),
         "destination_city": shipment.get("receiverCity"),
-        "shipment_number": shipment.get("shipmentNumber"),
+        "shipment_number": shipment_number,
         "shipment_date": from_milliseconds(shipment_date).isoformat() if shipment_date is not None else None,
         "status": status,
         "raw_status": shipment.get("shipmentStatus"),
@@ -151,6 +154,7 @@ def package(shipment: Mapping[str, Any], status: int, changed: datetime, setting
         "pickup_point": pickup_point(point, shipment) if settings.include_pickup_details else None,
         "pickup_code": pickup_code(shipment) if settings.include_pickup_details else None,
         "source": "Matkahuolto",
+        "tracking_url": tracking_url(shipment_number),
     }
 
 
@@ -208,3 +212,8 @@ def parse_int(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def tracking_url(shipment_number: Any) -> str | None:
+    """The carrier's own tracking page for the package."""
+    return TRACKING_URL.format(number=quote(str(shipment_number), safe="")) if shipment_number else None

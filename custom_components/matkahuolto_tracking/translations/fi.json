@@ -2,12 +2,21 @@
   "config": {
     "step": {
       "user": {
-        "title": "Matkahuolto paketinseuranta",
-        "description": "matkahuolto.fi-tilisi tulevat ja äskettäin toimitetut paketit. Pääsy- ja päivitysavain kopioidaan selaimesta, kun olet kirjautunut matkahuolto.fi-palveluun. Integraation README kertoo, miten se tehdään.",
+        "title": "Kirjaudu Matkahuoltoon",
+        "description": "matkahuolto.fi-tilisi sähköpostiosoite ja salasana.",
         "data": {
           "username": "Sähköpostiosoite",
-          "access_token": "Pääsyavain",
-          "refresh_token": "Päivitysavain",
+          "password": "Salasana"
+        },
+        "data_description": {
+          "username": "Sensori nimetään sen mukaan.",
+          "password": "Home Assistant säilyttää sen, jotta se voi tarvittaessa kirjautua uudelleen itse."
+        }
+      },
+      "settings": {
+        "title": "Asetukset",
+        "description": "Kirjauduttu tilille **{username}**. Asetuksia voi muuttaa myöhemmin kohdasta Määritä uudelleen.",
+        "data": {
           "language": "Kieli",
           "prioritize_undelivered": "Toimittamattomat paketit ensin",
           "max_shipments": "Pakettien enimmäismäärä",
@@ -16,9 +25,6 @@
           "include_pickup_details": "Noutopiste ja koodi"
         },
         "data_description": {
-          "username": "matkahuolto.fi-tilisi sähköpostiosoite. Sensori nimetään sen mukaan.",
-          "access_token": "Kirjautumisvastauksen pääsyavain ilman lainausmerkkejä.",
-          "refresh_token": "Saman vastauksen päivitysavain. Sillä haetaan uusi pääsyavain, kun vanha vanhenee.",
           "language": "Kieli, jolla pakettien tapahtumat kuvataan.",
           "prioritize_undelivered": "Kun paketteja on enemmän kuin enimmäismäärä, toimittamattomat näytetään ennen toimitettuja.",
           "max_shipments": "Kuinka monta pakettia sensori listaa.",
@@ -28,23 +34,27 @@
         }
       },
       "reauth_confirm": {
-        "title": "Uudet avaimet tilille {username}",
-        "description": "Matkahuolto ei enää hyväksy avaimia. Kirjaudu matkahuolto.fi-palveluun ja kopioi uudet avaimet selaimesta integraation READMEn ohjeen mukaan.",
+        "title": "Kirjaudu uudelleen",
+        "description": "Matkahuolto ei enää hyväksy tilin **{username}** tallennettua kirjautumista. Anna salasana.",
         "data": {
-          "access_token": "Pääsyavain",
-          "refresh_token": "Päivitysavain"
+          "password": "Salasana"
         },
         "data_description": {
-          "access_token": "Kirjautumisvastauksen pääsyavain ilman lainausmerkkejä.",
-          "refresh_token": "Saman vastauksen päivitysavain. Sillä haetaan uusi pääsyavain, kun vanha vanhenee."
+          "password": "Home Assistant säilyttää sen, jotta se voi tarvittaessa kirjautua uudelleen itse."
         }
       },
       "reconfigure": {
         "title": "Matkahuolto paketinseuranta",
-        "description": "Tilin {username} avaimet ja asetukset.",
+        "description": "**{username}**",
+        "menu_options": {
+          "reconfigure_settings": "Muuta asetuksia",
+          "reconfigure_login": "Kirjaudu uudelleen"
+        }
+      },
+      "reconfigure_settings": {
+        "title": "Muuta asetuksia",
+        "description": "**{username}**",
         "data": {
-          "access_token": "Pääsyavain",
-          "refresh_token": "Päivitysavain",
           "language": "Kieli",
           "prioritize_undelivered": "Toimittamattomat paketit ensin",
           "max_shipments": "Pakettien enimmäismäärä",
@@ -53,8 +63,6 @@
           "include_pickup_details": "Noutopiste ja koodi"
         },
         "data_description": {
-          "access_token": "Kirjautumisvastauksen pääsyavain ilman lainausmerkkejä.",
-          "refresh_token": "Saman vastauksen päivitysavain. Sillä haetaan uusi pääsyavain, kun vanha vanhenee.",
           "language": "Kieli, jolla pakettien tapahtumat kuvataan.",
           "prioritize_undelivered": "Kun paketteja on enemmän kuin enimmäismäärä, toimittamattomat näytetään ennen toimitettuja.",
           "max_shipments": "Kuinka monta pakettia sensori listaa.",
@@ -62,16 +70,27 @@
           "completed_shipment_day_shown": "Lasketaan toimituksesta.",
           "include_pickup_details": "Lisää pakettien tietoihin noutopisteen ja automaatin avauskoodi."
         }
+      },
+      "reconfigure_login": {
+        "title": "Kirjaudu uudelleen",
+        "description": "Tilin **{username}** salasana, jos se on vaihtunut.",
+        "data": {
+          "password": "Salasana"
+        },
+        "data_description": {
+          "password": "Home Assistant säilyttää sen, jotta se voi tarvittaessa kirjautua uudelleen itse."
+        }
       }
     },
     "error": {
-      "invalid_auth": "Matkahuolto ei hyväksynyt avaimia. Kopioi uudet matkahuolto.fi-palvelusta.",
-      "cannot_connect": "Matkahuoltoon ei saatu yhteyttä. Yritä hetken kuluttua uudelleen."
+      "invalid_auth": "Väärä sähköpostiosoite tai salasana.",
+      "login_rejected": "Matkahuolto torjui kirjautumisen jo ennen salasanan tarkistusta. Integraatio saattaa tarvita päivityksen.",
+      "cannot_connect": "Matkahuoltoon ei saatu yhteyttä. Yritä hetken päästä uudelleen."
     },
     "abort": {
       "already_configured": "Tämä tili on jo lisätty.",
-      "reauth_successful": "Uudet avaimet toimivat, ja ne on tallennettu.",
-      "reconfigure_successful": "Asetukset tallennettu."
+      "reauth_successful": "Kirjauduttu uudelleen.",
+      "reconfigure_successful": "Tallennettu."
     }
   },
   "selector": {

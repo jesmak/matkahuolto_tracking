@@ -11,18 +11,22 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 
 from custom_components.matkahuolto_tracking.const import (
     API_BASE_URL,
+    PATH_AUTH,
     PATH_RECEIVED_SHIPMENTS,
     PATH_REFRESH_TOKEN,
     PATH_USER,
 )
 
 USERNAME = "matti.meikalainen@example.com"
+PASSWORD = "Salasana-123"
 ACCESS_TOKEN = "access-token"
 REFRESH_TOKEN = "refresh-token"
 NEW_ACCESS_TOKEN = "new-access-token"
+NEW_REFRESH_TOKEN = "new-refresh-token"
 
 ENTRY_DATA = {
     "username": USERNAME,
+    "password": PASSWORD,
     "access_token": ACCESS_TOKEN,
     "refresh_token": REFRESH_TOKEN,
     "language": "fi",
@@ -39,6 +43,18 @@ NOW = datetime(2026, 9, 16, 9, 0, tzinfo=UTC)
 USER_URL = API_BASE_URL + PATH_USER
 SHIPMENTS_URL = API_BASE_URL + PATH_RECEIVED_SHIPMENTS
 REFRESH_URL = API_BASE_URL + PATH_REFRESH_TOKEN
+AUTH_URL = API_BASE_URL + PATH_AUTH
+# The answer to a login, in Cognito's shape.
+LOGIN = {
+    "ChallengeParameters": {},
+    "AuthenticationResult": {
+        "AccessToken": NEW_ACCESS_TOKEN,
+        "ExpiresIn": 3600,
+        "TokenType": "Bearer",
+        "RefreshToken": NEW_REFRESH_TOKEN,
+        "IdToken": "id-token",
+    },
+}
 
 
 @pytest.fixture(autouse=True)

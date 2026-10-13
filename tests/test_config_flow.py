@@ -57,9 +57,7 @@ def expect_login(aioclient_mock: AiohttpClientMocker) -> None:
 
 
 def account(hass: HomeAssistant, **data: object) -> MockConfigEntry:
-    entry = MockConfigEntry(
-        domain=DOMAIN, title=USERNAME, version=2, minor_version=2, unique_id=USERNAME, data={**ENTRY_DATA, **data}
-    )
+    entry = MockConfigEntry(domain=DOMAIN, title=USERNAME, version=2, minor_version=2, unique_id=USERNAME, data={**ENTRY_DATA, **data})
     entry.add_to_hass(hass)
     return entry
 
@@ -68,9 +66,7 @@ async def log_in(hass: HomeAssistant, username: str = f" {USERNAME} ", password:
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "user"
-    return await hass.config_entries.flow.async_configure(
-        result["flow_id"], {"username": username, "password": password}
-    )
+    return await hass.config_entries.flow.async_configure(result["flow_id"], {"username": username, "password": password})
 
 
 async def test_adding_an_account(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
@@ -126,9 +122,7 @@ async def test_an_account_is_added_only_once(hass: HomeAssistant, aioclient_mock
     assert aioclient_mock.call_count == 0
 
 
-async def test_logging_in_again_when_the_login_stops_working(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
-) -> None:
+async def test_logging_in_again_when_the_login_stops_working(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
     expect_login(aioclient_mock)
     entry = account(hass, password="old-password", access_token="expired", refresh_token="expired")
 

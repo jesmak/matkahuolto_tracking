@@ -47,9 +47,7 @@ def account(hass: HomeAssistant, **options: object) -> MockConfigEntry:
     return entry
 
 
-async def test_the_sensor_lists_the_packages(
-    hass: HomeAssistant, matkahuolto: AiohttpClientMocker, freezer: FrozenDateTimeFactory
-) -> None:
+async def test_the_sensor_lists_the_packages(hass: HomeAssistant, matkahuolto: AiohttpClientMocker, freezer: FrozenDateTimeFactory) -> None:
     freezer.move_to(NOW)
     entry = account(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
@@ -75,9 +73,7 @@ async def test_packages_are_kept_out_of_the_recorder() -> None:
     assert "packages" in MatkahuoltoSensor._unrecorded_attributes
 
 
-async def test_an_entry_of_an_earlier_version_gets_a_unique_id(
-    hass: HomeAssistant, matkahuolto: AiohttpClientMocker
-) -> None:
+async def test_an_entry_of_an_earlier_version_gets_a_unique_id(hass: HomeAssistant, matkahuolto: AiohttpClientMocker) -> None:
     entry = account(hass, minor_version=1, unique_id=None, username="Matti.Meikalainen@example.com")
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
@@ -117,9 +113,7 @@ async def test_tokens_that_stop_working_log_in_again(
     assert not hass.config_entries.flow.async_progress_by_handler(DOMAIN)
 
 
-async def test_a_password_that_stops_working_asks_for_a_new_one(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
-) -> None:
+async def test_a_password_that_stops_working_asks_for_a_new_one(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.get(SHIPMENTS_URL, status=401)
     aioclient_mock.post(REFRESH_URL, status=401)
     aioclient_mock.post(AUTH_URL, status=401)
@@ -132,9 +126,7 @@ async def test_a_password_that_stops_working_asks_for_a_new_one(
     assert flow["context"]["source"] == SOURCE_REAUTH
 
 
-async def test_an_entry_without_a_password_asks_for_it(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
-) -> None:
+async def test_an_entry_without_a_password_asks_for_it(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.get(SHIPMENTS_URL, status=401)
     aioclient_mock.post(REFRESH_URL, status=401)
     entry = account(hass, data={key: value for key, value in ENTRY_DATA.items() if key != "password"})

@@ -27,9 +27,7 @@ async def answer(shipments: list[dict[str, Any]]) -> AiohttpClientMockResponse:
 
 
 def account(hass: HomeAssistant) -> MockConfigEntry:
-    entry = MockConfigEntry(
-        domain=DOMAIN, title=USERNAME, version=2, minor_version=2, unique_id=USERNAME, data=ENTRY_DATA
-    )
+    entry = MockConfigEntry(domain=DOMAIN, title=USERNAME, version=2, minor_version=2, unique_id=USERNAME, data=ENTRY_DATA)
     entry.add_to_hass(hass)
     return entry
 
@@ -43,9 +41,7 @@ async def set_up(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> MockCon
     return entry
 
 
-async def test_the_counts_of_the_packages(
-    hass: HomeAssistant, matkahuolto: AiohttpClientMocker, freezer: FrozenDateTimeFactory
-) -> None:
+async def test_the_counts_of_the_packages(hass: HomeAssistant, matkahuolto: AiohttpClientMocker, freezer: FrozenDateTimeFactory) -> None:
     await set_up(hass, freezer)
 
     assert hass.states.get(ON_THE_WAY).state == "2", "ready for pickup and in transport"

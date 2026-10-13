@@ -25,9 +25,7 @@ def numbers(packages: Packages) -> list[str]:
     return [package["shipment_number"] for package in packages.packages]
 
 
-@pytest.mark.parametrize(
-    ("raw_status", "status"), [(0, 1), (19, 1), (20, 2), (35, 3), (40, 4), (55, 5), (60, 0), (99, 0)]
-)
+@pytest.mark.parametrize(("raw_status", "status"), [(0, 1), (19, 1), (20, 2), (35, 3), (40, 4), (55, 5), (60, 0), (99, 0)])
 def test_matkahuolto_status_codes(raw_status: int, status: int) -> None:
     assert map_raw_status(raw_status) == status
 

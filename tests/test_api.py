@@ -32,9 +32,7 @@ from .conftest import (
 )
 
 
-def client(
-    hass: HomeAssistant, saved: list[tuple[str, str]] | None = None, password: str | None = None
-) -> MatkahuoltoClient:
+def client(hass: HomeAssistant, saved: list[tuple[str, str]] | None = None, password: str | None = None) -> MatkahuoltoClient:
     def save(access_token: str, refresh_token: str) -> None:
         if saved is not None:
             saved.append((access_token, refresh_token))
@@ -59,9 +57,7 @@ async def test_logging_in_as_the_app(hass: HomeAssistant, aioclient_mock: Aiohtt
     ("status", "error"),
     [(401, MatkahuoltoAuthError), (400, MatkahuoltoLoginRejectedError), (503, MatkahuoltoError)],
 )
-async def test_a_login_that_fails(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, status: int, error: type[Exception]
-) -> None:
+async def test_a_login_that_fails(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, status: int, error: type[Exception]) -> None:
     aioclient_mock.post(AUTH_URL, status=status, text="Invalid request")
     with pytest.raises(error):
         await log_in(async_get_clientsession(hass), USERNAME, PASSWORD)
@@ -74,9 +70,7 @@ async def test_a_login_answer_without_tokens(hass: HomeAssistant, aioclient_mock
     assert not isinstance(error.value, MatkahuoltoAuthError)
 
 
-async def test_shipments_are_fetched_with_the_access_token(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
-) -> None:
+async def test_shipments_are_fetched_with_the_access_token(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.get(SHIPMENTS_URL, json={"shipments": SHIPMENTS})
     assert len(await client(hass).received_shipments()) == len(SHIPMENTS)
 
@@ -122,9 +116,7 @@ async def test_a_refused_password_needs_a_new_one(hass: HomeAssistant, aioclient
         await client(hass, password=PASSWORD).received_shipments()
 
 
-async def test_a_refused_refresh_token_without_a_password_needs_one(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
-) -> None:
+async def test_a_refused_refresh_token_without_a_password_needs_one(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.get(SHIPMENTS_URL, status=401)
     aioclient_mock.post(REFRESH_URL, status=401)
     with pytest.raises(MatkahuoltoAuthError):
@@ -132,9 +124,7 @@ async def test_a_refused_refresh_token_without_a_password_needs_one(
     assert all(str(call[1]) != AUTH_URL for call in aioclient_mock.mock_calls)
 
 
-async def test_a_refreshed_token_that_is_refused_too_needs_new_tokens(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
-) -> None:
+async def test_a_refreshed_token_that_is_refused_too_needs_new_tokens(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.get(SHIPMENTS_URL, status=401)
     aioclient_mock.post(REFRESH_URL, json={"AuthenticationResult": {"AccessToken": NEW_ACCESS_TOKEN}})
     with pytest.raises(MatkahuoltoAuthError):

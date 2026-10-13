@@ -49,15 +49,11 @@ from .const import (
 )
 
 PASSWORD_FIELD = {
-    vol.Required(CONF_PASSWORD): TextSelector(
-        TextSelectorConfig(type=TextSelectorType.PASSWORD, autocomplete="current-password")
-    )
+    vol.Required(CONF_PASSWORD): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD, autocomplete="current-password"))
 }
 LOGIN_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_USERNAME): TextSelector(
-            TextSelectorConfig(type=TextSelectorType.EMAIL, autocomplete="username")
-        ),
+        vol.Required(CONF_USERNAME): TextSelector(TextSelectorConfig(type=TextSelectorType.EMAIL, autocomplete="username")),
         **PASSWORD_FIELD,
     }
 )
@@ -70,9 +66,7 @@ SETTINGS_SCHEMA = vol.Schema(
             SelectSelectorConfig(options=LANGUAGES, translation_key=CONF_LANGUAGE, mode=SelectSelectorMode.DROPDOWN)
         ),
         vol.Required(CONF_PRIORITIZE_UNDELIVERED): BooleanSelector(),
-        vol.Required(CONF_MAX_SHIPMENTS): NumberSelector(
-            NumberSelectorConfig(min=1, max=50, step=1, mode=NumberSelectorMode.BOX)
-        ),
+        vol.Required(CONF_MAX_SHIPMENTS): NumberSelector(NumberSelectorConfig(min=1, max=50, step=1, mode=NumberSelectorMode.BOX)),
         vol.Required(CONF_STALE_SHIPMENT_DAY_LIMIT): DAYS_SELECTOR,
         vol.Required(CONF_COMPLETED_SHIPMENT_DAYS_SHOWN): DAYS_SELECTOR,
         vol.Required(CONF_INCLUDE_PICKUP_DETAILS): BooleanSelector(),

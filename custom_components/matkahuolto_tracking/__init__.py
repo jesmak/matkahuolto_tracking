@@ -48,7 +48,5 @@ async def async_migrate_entry(hass: HomeAssistant, entry: MatkahuoltoConfigEntry
             minor_version=1,
         )
     if entry.minor_version < 2:
-        hass.config_entries.async_update_entry(
-            entry, unique_id=entry.data[CONF_USERNAME].strip().lower(), minor_version=2
-        )
+        hass.config_entries.async_update_entry(entry, unique_id=entry.data[CONF_USERNAME].strip().lower(), minor_version=2)
     return True

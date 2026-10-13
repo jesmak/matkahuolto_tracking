@@ -16,10 +16,7 @@ PATH_RECEIVED_SHIPMENTS: Final = "/history/parcel/received"
 PATH_REFRESH_TOKEN: Final = "/user/token/refresh"
 PATH_AUTH: Final = "/user/auth"
 # The web service is made for matkahuolto.fi, so requests carry a browser's user agent.
-USER_AGENT: Final = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/106.0.5249.62 Safari/537.36"
-)
+USER_AGENT: Final = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.5249.62 Safari/537.36"
 # The login is made the way the Matkahuolto Paketit app makes it: the website's login needs a reCAPTCHA,
 # the app's doesn't. The endpoint turns away browser, curl and Python user agents with "400 Invalid
 # request" before looking at the password, so the login carries the app's HTTP client and version.

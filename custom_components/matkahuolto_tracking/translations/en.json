@@ -22,7 +22,7 @@
           "max_shipments": "Maximum number of packages",
           "stale_shipment_day_limit": "Days until undelivered packages are hidden",
           "completed_shipment_day_shown": "Days until delivered packages are hidden",
-          "include_pickup_details": "Pickup point and code"
+          "pickup_code": "Pickup code"
         },
         "data_description": {
           "language": "Language of the package event descriptions.",
@@ -30,7 +30,7 @@
           "max_shipments": "How many packages the sensor lists.",
           "stale_shipment_day_limit": "Counted from the package's latest event. Some packages stay in delivery for good.",
           "completed_shipment_day_shown": "Counted from the delivery.",
-          "include_pickup_details": "Add the pickup point and pickup code to package data. Off by default as this is sensitive data."
+          "pickup_code": "A code for collecting the package. Off by default as this is sensitive data."
         }
       },
       "reauth_confirm": {
@@ -60,7 +60,7 @@
           "max_shipments": "Maximum number of packages",
           "stale_shipment_day_limit": "Days until undelivered packages are hidden",
           "completed_shipment_day_shown": "Days until delivered packages are hidden",
-          "include_pickup_details": "Pickup point and code"
+          "pickup_code": "Pickup code"
         },
         "data_description": {
           "language": "Language of the package event descriptions.",
@@ -68,7 +68,7 @@
           "max_shipments": "How many packages the sensor lists.",
           "stale_shipment_day_limit": "Counted from the package's latest event. Some packages stay in delivery for good.",
           "completed_shipment_day_shown": "Counted from the delivery.",
-          "include_pickup_details": "Add the pickup point and pickup code to package data."
+          "pickup_code": "A code for collecting the package."
         }
       },
       "reconfigure_login": {
@@ -99,6 +99,12 @@
         "fi": "Suomi",
         "en": "English"
       }
+    },
+    "pickup_code": {
+      "options": {
+        "none": "Don't add",
+        "code": "Add"
+      }
     }
   },
   "entity": {
@@ -124,6 +130,11 @@
       "ready_for_pickup": {
         "name": "Packages ready for pickup"
       }
+    }
+  },
+  "device": {
+    "account": {
+      "name": "Matkahuolto ({username})"
     }
   }
 }

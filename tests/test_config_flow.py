@@ -29,7 +29,7 @@ SETTINGS = {
     "max_shipments": 5.0,
     "stale_shipment_day_limit": 15.0,
     "completed_shipment_day_shown": 3.0,
-    "include_pickup_details": False,
+    "pickup_code": "none",
 }
 NEW_SETTINGS = {
     "language": "en",
@@ -37,7 +37,7 @@ NEW_SETTINGS = {
     "max_shipments": 10.0,
     "stale_shipment_day_limit": 30.0,
     "completed_shipment_day_shown": 1.0,
-    "include_pickup_details": True,
+    "pickup_code": "code",
 }
 STORED_NEW_SETTINGS = {
     "language": "en",
@@ -45,7 +45,7 @@ STORED_NEW_SETTINGS = {
     "max_shipments": 10,
     "stale_shipment_day_limit": 30,
     "completed_shipment_day_shown": 1,
-    "include_pickup_details": True,
+    "pickup_code": "code",
 }
 NEW_TOKENS = {"access_token": NEW_ACCESS_TOKEN, "refresh_token": NEW_REFRESH_TOKEN}
 
@@ -57,7 +57,7 @@ def expect_login(aioclient_mock: AiohttpClientMocker) -> None:
 
 
 def account(hass: HomeAssistant, **data: object) -> MockConfigEntry:
-    entry = MockConfigEntry(domain=DOMAIN, title=USERNAME, version=2, minor_version=2, unique_id=USERNAME, data={**ENTRY_DATA, **data})
+    entry = MockConfigEntry(domain=DOMAIN, title=USERNAME, version=2, minor_version=3, unique_id=USERNAME, data={**ENTRY_DATA, **data})
     entry.add_to_hass(hass)
     return entry
 

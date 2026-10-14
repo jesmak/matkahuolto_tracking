@@ -181,10 +181,13 @@ class MatkahuoltoClient:
         # A server error says nothing about the tokens: try again at the next update.
         if status >= 500:
             raise MatkahuoltoError(f"Matkahuolto couldn't refresh the access token (status {status})")
-        access_token, _refresh_token = _tokens(body)
+        access_token, refresh_token = _tokens(body)
         if access_token is None:
             raise MatkahuoltoAuthError("Matkahuolto didn't give a new access token")
 
         self._access_token = access_token
+        # A rotated refresh token replaces the old one, which stops working after a while.
+        if refresh_token is not None:
+            self._refresh_token = refresh_token
         _LOGGER.debug("Refreshed the access token")
         self._tokens_changed()

@@ -34,7 +34,7 @@ ENTRY_DATA = {
     "max_shipments": 5,
     "stale_shipment_day_limit": 15,
     "completed_shipment_day_shown": 3,
-    "include_pickup_details": False,
+    "pickup_code": "none",
 }
 
 # When the tests run: noon in Finland.
@@ -79,9 +79,9 @@ def shipment(
     data: dict[str, Any] = {
         "shipmentNumber": number,
         "shipmentStatus": raw_status,
-        "senderName": "Verkkokauppa.com",
+        "senderName": "Example Shop",
         "senderCity": "Helsinki",
-        "destinationPlaceName": "K-Market Keskusta",
+        "destinationPlaceName": "Example Market Keskusta",
         "receiverCity": "Lappeenranta",
         "shipmentDate": milliseconds(datetime(2026, 9, 14, 6, 0, tzinfo=UTC)),
         "deliveryTime": delivery_time,

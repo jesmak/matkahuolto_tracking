@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import pytest
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE
@@ -13,7 +14,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry, async_
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.matkahuolto_tracking.const import DOMAIN
-from custom_components.matkahuolto_tracking.sensor import MatkahuoltoSensor
 
 from .conftest import (
     AUTH_URL,
@@ -39,7 +39,7 @@ def account(hass: HomeAssistant, **options: object) -> MockConfigEntry:
         domain=DOMAIN,
         title=USERNAME,
         version=options.pop("version", 2),
-        minor_version=options.pop("minor_version", 2),
+        minor_version=options.pop("minor_version", 3),
         unique_id=options.pop("unique_id", USERNAME),
         data=data if data is not None else {**ENTRY_DATA, **options},
     )
@@ -69,17 +69,13 @@ async def test_the_sensor_lists_the_packages(hass: HomeAssistant, matkahuolto: A
     assert entry.state is ConfigEntryState.NOT_LOADED
 
 
-async def test_packages_are_kept_out_of_the_recorder() -> None:
-    assert "packages" in MatkahuoltoSensor._unrecorded_attributes
-
-
 async def test_an_entry_of_an_earlier_version_gets_a_unique_id(hass: HomeAssistant, matkahuolto: AiohttpClientMocker) -> None:
     entry = account(hass, minor_version=1, unique_id=None, username="Matti.Meikalainen@example.com")
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.LOADED
-    assert (entry.minor_version, entry.unique_id) == (2, USERNAME)
+    assert (entry.minor_version, entry.unique_id) == (3, USERNAME)
 
 
 async def test_a_refreshed_access_token_is_saved(
@@ -158,7 +154,7 @@ async def test_an_entry_from_before_tokens_logs_in_with_its_password(
     await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.LOADED
-    assert (entry.version, entry.minor_version, entry.unique_id) == (2, 2, USERNAME)
+    assert (entry.version, entry.minor_version, entry.unique_id) == (2, 3, USERNAME)
     assert (entry.data["access_token"], entry.data["refresh_token"]) == (NEW_ACCESS_TOKEN, NEW_REFRESH_TOKEN)
     assert hass.states.get(ENTITY_ID) is not None
 
@@ -178,3 +174,25 @@ async def test_the_sensor_is_unavailable_while_matkahuolto_is_down(
     await hass.async_block_till_done()
 
     assert hass.states.get(ENTITY_ID).state == STATE_UNAVAILABLE
+
+
+@pytest.mark.parametrize(("switch", "choice"), [(True, "code"), (False, "none"), (None, "none")])
+async def test_the_pickup_switch_of_an_entry_of_2_2_becomes_a_choice(hass: HomeAssistant, switch: bool | None, choice: str) -> None:
+    data = {key: value for key, value in ENTRY_DATA.items() if key != "pickup_code"}
+    if switch is not None:
+        data["include_pickup_details"] = switch
+    entry = account(hass, minor_version=2, data=data)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.minor_version == 3
+    assert entry.data["pickup_code"] == choice
+    assert "include_pickup_details" not in entry.data
+
+
+async def test_a_username_typed_with_spaces_is_stripped(hass: HomeAssistant) -> None:
+    entry = account(hass, minor_version=2, username=f"  {USERNAME} ")
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.data["username"] == USERNAME

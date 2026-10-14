@@ -39,11 +39,17 @@ CONF_PRIORITIZE_UNDELIVERED: Final = "prioritize_undelivered"
 CONF_MAX_SHIPMENTS: Final = "max_shipments"
 CONF_STALE_SHIPMENT_DAY_LIMIT: Final = "stale_shipment_day_limit"
 CONF_COMPLETED_SHIPMENT_DAYS_SHOWN: Final = "completed_shipment_day_shown"
+# Whether packages carry their pickup code. Before 2.3 this was include_pickup_details, a switch that also held back
+# the pickup point.
+CONF_PICKUP_CODE: Final = "pickup_code"
 CONF_INCLUDE_PICKUP_DETAILS: Final = "include_pickup_details"
 
 DEFAULT_PRIORITIZE_UNDELIVERED: Final = True
-# The pickup point and its code are left out unless asked for: the code collects the package.
-DEFAULT_INCLUDE_PICKUP_DETAILS: Final = False
+PICKUP_CODE_NONE: Final = "none"
+PICKUP_CODE_CODE: Final = "code"
+PICKUP_CODE_OPTIONS: Final = [PICKUP_CODE_NONE, PICKUP_CODE_CODE]
+# The code is left out unless asked for, since it collects the package.
+DEFAULT_PICKUP_CODE: Final = PICKUP_CODE_NONE
 DEFAULT_MAX_SHIPMENTS: Final = 5
 DEFAULT_STALE_SHIPMENT_DAY_LIMIT: Final = 15
 DEFAULT_COMPLETED_SHIPMENT_DAYS_SHOWN: Final = 3

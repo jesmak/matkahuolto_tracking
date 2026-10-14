@@ -8,6 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -36,7 +37,9 @@ class MatkahuoltoCoordinator(DataUpdateCoordinator[Packages]):
             hass,
             _LOGGER,
             config_entry=entry,
-            name=f"{DOMAIN} {entry.title}",
+            # Not the title, which is the account's email, so the integration's own update errors don't name the account
+            # in logs that end up in bug reports. Home Assistant still logs the title itself when setting up.
+            name=DOMAIN,
             update_interval=UPDATE_INTERVAL,
         )
         self.settings = PackageSettings.from_data(entry.data)
@@ -59,6 +62,17 @@ class MatkahuoltoCoordinator(DataUpdateCoordinator[Packages]):
         self.hass.config_entries.async_update_entry(
             self.config_entry,
             data={**self.config_entry.data, CONF_ACCESS_TOKEN: access_token, CONF_REFRESH_TOKEN: refresh_token},
+        )
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """The account as a device, which all of its entities belong to."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, self.config_entry.entry_id)},
+            translation_key="account",
+            translation_placeholders={"username": self.config_entry.data[CONF_USERNAME]},
+            manufacturer="Matkahuolto",
+            entry_type=DeviceEntryType.SERVICE,
         )
 
     async def _async_update_data(self) -> Packages:

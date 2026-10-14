@@ -153,3 +153,14 @@ async def test_an_unexpected_response(hass: HomeAssistant, aioclient_mock: Aioht
     aioclient_mock.get(SHIPMENTS_URL, json={"something": "else"})
     with pytest.raises(MatkahuoltoError):
         await client(hass).received_shipments()
+
+
+async def test_a_rotated_refresh_token_is_kept(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    aioclient_mock.get(SHIPMENTS_URL, side_effect=answers((401, None), (200, {"shipments": SHIPMENTS})))
+    aioclient_mock.post(REFRESH_URL, json={"AuthenticationResult": {"AccessToken": NEW_ACCESS_TOKEN, "RefreshToken": "refresh-2"}})
+    saved: list[tuple[str, str]] = []
+    matkahuolto = client(hass, saved)
+
+    await matkahuolto.received_shipments()
+    assert matkahuolto.refresh_token == "refresh-2"
+    assert saved == [(NEW_ACCESS_TOKEN, "refresh-2")], "the old one stops working after a while, so the new one is saved"

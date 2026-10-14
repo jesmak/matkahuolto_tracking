@@ -17,7 +17,7 @@ SETTINGS = PackageSettings(
     max_shipments=5,
     stale_shipment_day_limit=15,
     completed_shipment_days_shown=3,
-    include_pickup_details=False,
+    pickup_code="none",
 )
 
 
@@ -44,9 +44,9 @@ def test_newest_first_when_undelivered_packages_are_not_prioritised() -> None:
 def test_package_attributes() -> None:
     _, ready, delivered_without_events, _ = build_packages(SHIPMENTS, SETTINGS, NOW).packages
     assert ready == {
-        "origin": "Verkkokauppa.com",
+        "origin": "Example Shop",
         "origin_city": "Helsinki",
-        "destination": "K-Market Keskusta",
+        "destination": "Example Market Keskusta",
         "destination_city": "Lappeenranta",
         "shipment_number": "MH0001",
         "shipment_date": "2026-09-14T09:00:00+03:00",
@@ -60,8 +60,17 @@ def test_package_attributes() -> None:
         "pickup_deadline": None,
         "weight": None,
         "package_count": None,
-        "pickup_point": None,
+        # The destination stands in for the pickup point, which is always included.
+        "pickup_point": {
+            "name": "Example Market Keskusta",
+            "street": None,
+            "postal_code": None,
+            "city": "Lappeenranta",
+            "type": None,
+            "available": None,
+        },
         "pickup_code": None,
+        "pickup_qr": None,
         "source": "Matkahuolto",
         "tracking_url": "https://www.matkahuolto.fi/seuranta?parcelNumber=MH0001",
     }
@@ -93,7 +102,7 @@ def with_details(**changes: Any) -> dict[str, Any]:
             "deliveryPinCode": "12345678",
             "pickupPoint": {
                 "officeName": "Matkahuolto Keskusta",
-                "officeStreetAddress": "Kauppakatu 1",
+                "officeStreetAddress": "Esimerkkikatu 1",
                 "officePostalCode": "53100",
                 "officeCity": "Lappeenranta",
                 "officeType": "SERVICE_POINT",
@@ -112,18 +121,19 @@ def test_a_package_carries_what_matkahuolto_knows_of_it() -> None:
     assert package["package_count"] == 2
 
 
-def test_the_pickup_point_and_its_code_are_left_out_unless_asked_for() -> None:
+def test_the_pickup_point_is_always_there_but_the_code_only_when_asked_for() -> None:
     [package] = build_packages([with_details()], SETTINGS, NOW).packages
-    assert package["pickup_point"] is None
+    assert package["pickup_point"]["name"] == "Matkahuolto Keskusta"
     assert package["pickup_code"] is None
+    assert package["pickup_qr"] is None
 
 
 def test_the_pickup_point_and_its_code_when_asked_for() -> None:
-    settings = replace(SETTINGS, include_pickup_details=True)
+    settings = replace(SETTINGS, pickup_code="code")
     [package] = build_packages([with_details()], settings, NOW).packages
     assert package["pickup_point"] == {
         "name": "Matkahuolto Keskusta",
-        "street": "Kauppakatu 1",
+        "street": "Esimerkkikatu 1",
         "postal_code": "53100",
         "city": "Lappeenranta",
         "type": "SERVICE_POINT",
@@ -133,11 +143,11 @@ def test_the_pickup_point_and_its_code_when_asked_for() -> None:
 
 
 def test_the_destination_stands_in_for_a_missing_pickup_point() -> None:
-    settings = replace(SETTINGS, include_pickup_details=True)
+    settings = replace(SETTINGS, pickup_code="code")
     plain = shipment("MH0021", 55, "2026-09-16T08:00:00")
     [package] = build_packages([plain], settings, NOW).packages
     assert package["pickup_point"] == {
-        "name": "K-Market Keskusta",
+        "name": "Example Market Keskusta",
         "street": None,
         "postal_code": None,
         "city": "Lappeenranta",
@@ -145,3 +155,57 @@ def test_the_destination_stands_in_for_a_missing_pickup_point() -> None:
         "available": None,
     }
     assert package["pickup_code"] is None
+
+
+def test_a_home_delivery_has_no_pickup_point() -> None:
+    home = {key: value for key, value in shipment("MH0022", 40, "2026-09-16T08:00:00").items() if key != "destinationPlaceName"}
+    [package] = build_packages([home], SETTINGS, NOW).packages
+    assert package["pickup_point"] is None, "the receiver's city alone is no pickup point"
+
+
+def test_the_counts_and_events_see_every_package_not_only_the_listed_ones() -> None:
+    moving = [shipment(f"MH03{n}", 35, f"2026-09-16T0{n}:00:00") for n in range(1, 4)]
+    stale = shipment("MH0399", 35, "2026-08-01T08:00:00")
+    packages = build_packages([*moving, stale], replace(SETTINGS, max_shipments=2), NOW)
+    assert len(packages.packages) == 2
+    assert len(packages.current) == 3, "a count covers all of them, but not one gone stale"
+    assert len(packages.every) == 4, "events follow every package, stale ones too"
+
+
+@pytest.mark.parametrize("setting", ["None", "codes", ""])
+def test_a_setting_that_is_not_known_keeps_the_code_out(setting: str) -> None:
+    [package] = build_packages([with_details()], replace(SETTINGS, pickup_code=setting), NOW).packages
+    assert package["pickup_code"] is None
+
+
+def test_a_package_listed_twice_is_kept_once_as_its_newest_copy() -> None:
+    newer = shipment("MH0600", 55, "2026-09-16T11:30:00")
+    older = shipment("MH0600", 35, "2026-09-16T08:30:00")
+    for twice in ([newer, older], [older, newer]):
+        assert [package["status"] for package in build_packages(twice, SETTINGS, NOW).every] == [5]
+
+
+def test_a_package_without_a_number_is_left_out() -> None:
+    nameless = {key: value for key, value in shipment("MH0601", 35, "2026-09-16T08:30:00").items() if key != "shipmentNumber"}
+    assert build_packages([nameless], SETTINGS, NOW).every == []
+
+
+def test_an_event_time_that_cannot_be_read_falls_back_to_the_delivery(caplog: pytest.LogCaptureFixture) -> None:
+    changed = {**shipment("MH0800", 60, "2026-09-16T08:30:00"), "deliveryTime": milliseconds(datetime(2026, 9, 16, 6, 0, tzinfo=UTC))}
+    changed["lastEvent"]["time"] = 1789000000000
+    [package] = build_packages([changed], SETTINGS, NOW).packages
+    assert package["latest_event_date"] == "2026-09-16T09:00:00+03:00"
+    assert "can't be read" in caplog.text, "a changed format is said out loud, not swallowed"
+
+
+def test_a_time_out_of_range_is_left_empty_and_the_package_stays() -> None:
+    sentinel = {**shipment("MH0801", 35, "2026-09-16T08:30:00"), "etaDate": 253402300799999, "storedUntil": 10**20}
+    [package] = build_packages([sentinel], SETTINGS, NOW).packages
+    assert package["estimated_delivery"] is None
+    assert package["pickup_deadline"] is None
+
+
+def test_a_pickup_code_of_zero_is_a_code() -> None:
+    zero = {**shipment("MH0802", 55, "2026-09-16T08:30:00"), "deliveryPinCode": 0}
+    [package] = build_packages([zero], replace(SETTINGS, pickup_code="code"), NOW).packages
+    assert package["pickup_code"] == "0"

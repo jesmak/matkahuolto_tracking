@@ -31,21 +31,22 @@ from .api import MatkahuoltoAuthError, MatkahuoltoClient, MatkahuoltoError, Matk
 from .const import (
     CONF_ACCESS_TOKEN,
     CONF_COMPLETED_SHIPMENT_DAYS_SHOWN,
-    CONF_INCLUDE_PICKUP_DETAILS,
     CONF_LANGUAGE,
     CONF_MAX_SHIPMENTS,
     CONF_PASSWORD,
+    CONF_PICKUP_CODE,
     CONF_PRIORITIZE_UNDELIVERED,
     CONF_REFRESH_TOKEN,
     CONF_STALE_SHIPMENT_DAY_LIMIT,
     CONF_USERNAME,
     DEFAULT_COMPLETED_SHIPMENT_DAYS_SHOWN,
-    DEFAULT_INCLUDE_PICKUP_DETAILS,
     DEFAULT_MAX_SHIPMENTS,
+    DEFAULT_PICKUP_CODE,
     DEFAULT_PRIORITIZE_UNDELIVERED,
     DEFAULT_STALE_SHIPMENT_DAY_LIMIT,
     DOMAIN,
     LANGUAGES,
+    PICKUP_CODE_OPTIONS,
 )
 
 PASSWORD_FIELD = {
@@ -69,7 +70,9 @@ SETTINGS_SCHEMA = vol.Schema(
         vol.Required(CONF_MAX_SHIPMENTS): NumberSelector(NumberSelectorConfig(min=1, max=50, step=1, mode=NumberSelectorMode.BOX)),
         vol.Required(CONF_STALE_SHIPMENT_DAY_LIMIT): DAYS_SELECTOR,
         vol.Required(CONF_COMPLETED_SHIPMENT_DAYS_SHOWN): DAYS_SELECTOR,
-        vol.Required(CONF_INCLUDE_PICKUP_DETAILS): BooleanSelector(),
+        vol.Required(CONF_PICKUP_CODE): SelectSelector(
+            SelectSelectorConfig(options=PICKUP_CODE_OPTIONS, translation_key=CONF_PICKUP_CODE, mode=SelectSelectorMode.DROPDOWN)
+        ),
     }
 )
 
@@ -84,9 +87,10 @@ def clean_settings(user_input: Mapping[str, Any]) -> dict[str, Any]:
 
 
 class MatkahuoltoConfigFlow(ConfigFlow, domain=DOMAIN):
-    # 2.1 entries have no unique id and 1.x ones no tokens; __init__.async_migrate_entry updates them.
+    # 1.x entries have no tokens, 2.1 entries no unique id, and 2.2 entries the old pickup switch.
+    # __init__.async_migrate_entry updates them all.
     VERSION = 2
-    MINOR_VERSION = 2
+    MINOR_VERSION = 3
 
     def __init__(self) -> None:
         # The logged-in account (email, password and tokens), between the login and settings steps.
@@ -149,7 +153,7 @@ class MatkahuoltoConfigFlow(ConfigFlow, domain=DOMAIN):
             CONF_MAX_SHIPMENTS: DEFAULT_MAX_SHIPMENTS,
             CONF_STALE_SHIPMENT_DAY_LIMIT: DEFAULT_STALE_SHIPMENT_DAY_LIMIT,
             CONF_COMPLETED_SHIPMENT_DAYS_SHOWN: DEFAULT_COMPLETED_SHIPMENT_DAYS_SHOWN,
-            CONF_INCLUDE_PICKUP_DETAILS: DEFAULT_INCLUDE_PICKUP_DETAILS,
+            CONF_PICKUP_CODE: DEFAULT_PICKUP_CODE,
         }
         return self.async_show_form(
             step_id="settings",

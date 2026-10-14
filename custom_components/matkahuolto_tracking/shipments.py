@@ -6,6 +6,7 @@ integrations write too, so the card can list them together.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -17,18 +18,21 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_COMPLETED_SHIPMENT_DAYS_SHOWN,
-    CONF_INCLUDE_PICKUP_DETAILS,
     CONF_MAX_SHIPMENTS,
+    CONF_PICKUP_CODE,
     CONF_PRIORITIZE_UNDELIVERED,
     CONF_STALE_SHIPMENT_DAY_LIMIT,
     DEFAULT_COMPLETED_SHIPMENT_DAYS_SHOWN,
-    DEFAULT_INCLUDE_PICKUP_DETAILS,
     DEFAULT_MAX_SHIPMENTS,
+    DEFAULT_PICKUP_CODE,
     DEFAULT_PRIORITIZE_UNDELIVERED,
     DEFAULT_STALE_SHIPMENT_DAY_LIMIT,
+    PICKUP_CODE_CODE,
     TIME_ZONE,
     TRACKING_URL,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 FINNISH_TIME = ZoneInfo(TIME_ZONE)
 
@@ -48,8 +52,9 @@ class PackageSettings:
     # Undelivered packages whose latest event is older are hidden: some stay "in delivery" for good.
     stale_shipment_day_limit: int
     completed_shipment_days_shown: int
-    # The pickup point and the code that collects the package, which not everyone wants on a dashboard.
-    include_pickup_details: bool
+    # none or code: the code collects the package, which not everyone wants on a dashboard. The pickup point itself is
+    # always included.
+    pickup_code: str
 
     @classmethod
     def from_data(cls, data: Mapping[str, Any]) -> PackageSettings:
@@ -58,7 +63,7 @@ class PackageSettings:
             max_shipments=int(data.get(CONF_MAX_SHIPMENTS, DEFAULT_MAX_SHIPMENTS)),
             stale_shipment_day_limit=int(data.get(CONF_STALE_SHIPMENT_DAY_LIMIT, DEFAULT_STALE_SHIPMENT_DAY_LIMIT)),
             completed_shipment_days_shown=int(data.get(CONF_COMPLETED_SHIPMENT_DAYS_SHOWN, DEFAULT_COMPLETED_SHIPMENT_DAYS_SHOWN)),
-            include_pickup_details=bool(data.get(CONF_INCLUDE_PICKUP_DETAILS, DEFAULT_INCLUDE_PICKUP_DETAILS)),
+            pickup_code=str(data.get(CONF_PICKUP_CODE, DEFAULT_PICKUP_CODE)),
         )
 
 
@@ -66,7 +71,12 @@ class PackageSettings:
 class Packages:
     # When a shipment of the account last changed, hidden ones included. None when there are none.
     latest_change: datetime | None
+    # The packages to list, newest first and at most the maximum.
     packages: list[dict[str, Any]]
+    # Every package within the age limits, however many: the counts.
+    current: list[dict[str, Any]]
+    # Every package of the account: what happens to them, also outside the list.
+    every: list[dict[str, Any]]
 
 
 def map_raw_status(raw_status: int) -> int:
@@ -90,6 +100,7 @@ def build_packages(shipments: Iterable[Mapping[str, Any]], settings: PackageSett
     undelivered: list[tuple[datetime, dict[str, Any]]] = []
     delivered: list[tuple[datetime, dict[str, Any]]] = []
 
+    newest: dict[str, tuple[datetime, dict[str, Any]]] = {}
     for shipment in shipments:
         changed = status_change_time(shipment)
         raw_status = parse_int(shipment.get("shipmentStatus"))
@@ -99,18 +110,34 @@ def build_packages(shipments: Iterable[Mapping[str, Any]], settings: PackageSett
             latest_change = changed
 
         status = map_raw_status(raw_status)
+        keep_newest(newest, changed, package(shipment, status, changed, settings))
+
+    every = [item for _, item in newest.values()]
+    for changed, item in newest.values():
+        status = item["status"]
         age_days = (now - changed).days
         if status != STATUS_DELIVERED and age_days <= settings.stale_shipment_day_limit:
-            undelivered.append((changed, package(shipment, status, changed, settings)))
+            undelivered.append((changed, item))
         elif status == STATUS_DELIVERED and age_days <= settings.completed_shipment_days_shown:
-            delivered.append((changed, package(shipment, status, changed, settings)))
+            delivered.append((changed, item))
 
     undelivered.sort(key=change_time, reverse=True)
     delivered.sort(key=change_time, reverse=True)
     ordered = undelivered + delivered
     if not settings.prioritize_undelivered:
         ordered.sort(key=change_time, reverse=True)
-    return Packages(latest_change, [item for _, item in ordered[: settings.max_shipments]])
+    current = [item for _, item in ordered]
+    return Packages(latest_change, current[: settings.max_shipments], current, every)
+
+
+def keep_newest(newest: dict[str, tuple[datetime, dict[str, Any]]], changed: datetime, item: dict[str, Any]) -> None:
+    """Keeps a package by its number, the newest copy when the account lists one twice. One without a number is left out,
+    since nothing would tell its updates apart from another's."""
+    number = item.get("shipment_number")
+    if not number:
+        return
+    if number not in newest or changed > newest[number][0]:
+        newest[number] = (changed, item)
 
 
 def change_time(item: tuple[datetime, dict[str, Any]]) -> datetime:
@@ -121,9 +148,12 @@ def status_change_time(shipment: Mapping[str, Any]) -> datetime | None:
     """When the shipment last changed: its latest event, or its delivery when it has no events."""
     event = shipment.get("lastEvent")
     if isinstance(event, Mapping) and event.get("time"):
-        return parse_time(event["time"])
-    delivery_time = parse_int(shipment.get("deliveryTime"))
-    return from_milliseconds(delivery_time) if delivery_time is not None else None
+        parsed = parse_time(event["time"])
+        if parsed is not None:
+            return parsed
+        # Matkahuolto has changed the format, and the package would vanish without a word.
+        _LOGGER.warning("Matkahuolto gave an event time that can't be read, %r. Using the delivery time instead", event["time"])
+    return from_milliseconds(parse_int(shipment.get("deliveryTime")))
 
 
 def package(shipment: Mapping[str, Any], status: int, changed: datetime, settings: PackageSettings) -> dict[str, Any]:
@@ -138,7 +168,7 @@ def package(shipment: Mapping[str, Any], status: int, changed: datetime, setting
         "destination": shipment.get("destinationPlaceName"),
         "destination_city": shipment.get("receiverCity"),
         "shipment_number": shipment_number,
-        "shipment_date": from_milliseconds(shipment_date).isoformat() if shipment_date is not None else None,
+        "shipment_date": iso(from_milliseconds(shipment_date)),
         "status": status,
         "raw_status": shipment.get("shipmentStatus"),
         "latest_event": event.get("description"),
@@ -149,8 +179,10 @@ def package(shipment: Mapping[str, Any], status: int, changed: datetime, setting
         "pickup_deadline": moment(shipment.get("storedUntil")),
         "weight": number(shipment.get("shipmentWeight")),
         "package_count": parse_int(shipment.get("parcelCount")),
-        "pickup_point": pickup_point(point, shipment) if settings.include_pickup_details else None,
-        "pickup_code": pickup_code(shipment) if settings.include_pickup_details else None,
+        "pickup_point": pickup_point(point, shipment),
+        # Only a setting that asks for the code shows it: an unknown value keeps it out, as the code is a secret.
+        "pickup_code": pickup_code(shipment) if settings.pickup_code == PICKUP_CODE_CODE else None,
+        "pickup_qr": None,
         "source": "Matkahuolto",
         "tracking_url": tracking_url(shipment_number),
     }
@@ -159,7 +191,11 @@ def package(shipment: Mapping[str, Any], status: int, changed: datetime, setting
 def moment(value: Any) -> str | None:
     """A time Matkahuolto gives in milliseconds, as an ISO 8601 string."""
     milliseconds = parse_int(value)
-    return from_milliseconds(milliseconds).isoformat() if milliseconds is not None else None
+    return iso(from_milliseconds(milliseconds))
+
+
+def iso(moment: datetime | None) -> str | None:
+    return moment.isoformat() if moment is not None else None
 
 
 def pickup_point(point: Mapping[str, Any], shipment: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -172,13 +208,15 @@ def pickup_point(point: Mapping[str, Any], shipment: Mapping[str, Any]) -> dict[
         "type": point.get("officeType") or shipment.get("destinationPlaceType"),
         "available": None,
     }
-    return found if any(value for value in found.values()) else None
+    # Without a name it is no pickup point, only the receiver's city: a home delivery has nothing else.
+    return found if found["name"] else None
 
 
 def pickup_code(shipment: Mapping[str, Any]) -> str | None:
     """The code that collects the package."""
     code = shipment.get("deliveryPinCode")
-    return str(code) if code else None
+    # Not a plain truth test: a code of 0 is a code.
+    return str(code) if code is not None and code != "" else None
 
 
 def number(value: Any) -> float | None:
@@ -199,8 +237,14 @@ def parse_time(value: Any) -> datetime | None:
     return parsed.astimezone(FINNISH_TIME)
 
 
-def from_milliseconds(value: int) -> datetime:
-    return dt_util.utc_from_timestamp(value / 1000).astimezone(FINNISH_TIME)
+def from_milliseconds(value: int | None) -> datetime | None:
+    """A time Matkahuolto gives in milliseconds. One out of range, such as a 9999-12-31 that means no date, is none."""
+    if value is None:
+        return None
+    try:
+        return dt_util.utc_from_timestamp(value / 1000).astimezone(FINNISH_TIME)
+    except (OverflowError, ValueError, OSError):
+        return None
 
 
 def parse_int(value: Any) -> int | None:

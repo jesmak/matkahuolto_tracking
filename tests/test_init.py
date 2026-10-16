@@ -13,6 +13,7 @@ from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
+from custom_components.matkahuolto_tracking import async_migrate_entry
 from custom_components.matkahuolto_tracking.const import DOMAIN
 
 from .conftest import (
@@ -60,6 +61,7 @@ async def test_the_sensor_lists_the_packages(hass: HomeAssistant, matkahuolto: A
     assert [package["shipment_number"] for package in state.attributes["packages"]] == [
         "MH0002",
         "MH0001",
+        "MH0007",
         "MH0006",
         "MH0003",
     ]
@@ -120,6 +122,8 @@ async def test_a_password_that_stops_working_asks_for_a_new_one(hass: HomeAssist
     assert entry.state is ConfigEntryState.SETUP_ERROR
     [flow] = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
     assert flow["context"]["source"] == SOURCE_REAUTH
+    # Dropped, so that no restart tries it again before the user gives the new one.
+    assert "password" not in entry.data
 
 
 async def test_an_entry_without_a_password_asks_for_it(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
@@ -196,3 +200,21 @@ async def test_a_username_typed_with_spaces_is_stripped(hass: HomeAssistant) -> 
     await hass.async_block_till_done()
 
     assert entry.data["username"] == USERNAME
+
+
+async def test_the_entities_of_a_username_typed_with_spaces_keep_their_history(hass: HomeAssistant) -> None:
+    entry = account(hass, minor_version=2, username=f"  {USERNAME} ")
+    registry = er.async_get(hass)
+    for unique_id in (f"matkahuolto_  {USERNAME} ", f"matkahuolto_  {USERNAME} _on_the_way", f"matkahuolto_  {USERNAME} _package"):
+        registry.async_get_or_create("sensor", DOMAIN, unique_id, config_entry=entry)
+    other = registry.async_get_or_create("sensor", DOMAIN, "matkahuolto_someone.else@example.com", config_entry=entry)
+
+    assert await async_migrate_entry(hass, entry)
+
+    ids = {item.unique_id for item in er.async_entries_for_config_entry(registry, entry.entry_id)}
+    assert ids == {
+        f"matkahuolto_{USERNAME}",
+        f"matkahuolto_{USERNAME}_on_the_way",
+        f"matkahuolto_{USERNAME}_package",
+        other.unique_id,
+    }

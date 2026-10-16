@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
@@ -35,6 +35,9 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 FINNISH_TIME = ZoneInfo(TIME_ZONE)
+
+# Event times that couldn't be read, warned of once each rather than at every update.
+_unreadable_times: set[str] = set()
 
 # Package statuses, as package-tracker-card shows them.
 STATUS_DELIVERED = 0
@@ -75,8 +78,8 @@ class Packages:
     packages: list[dict[str, Any]]
     # Every package within the age limits, however many: the counts.
     current: list[dict[str, Any]]
-    # Every package of the account: what happens to them, also outside the list.
-    every: list[dict[str, Any]]
+    # Every package of the account by its number: what happens to them, also outside the list.
+    every: dict[str, dict[str, Any]]
 
 
 def map_raw_status(raw_status: int) -> int:
@@ -112,13 +115,14 @@ def build_packages(shipments: Iterable[Mapping[str, Any]], settings: PackageSett
         status = map_raw_status(raw_status)
         keep_newest(newest, changed, package(shipment, status, changed, settings))
 
-    every = [item for _, item in newest.values()]
+    every = {number: item for number, (_, item) in newest.items()}
     for changed, item in newest.values():
         status = item["status"]
-        age_days = (now - changed).days
-        if status != STATUS_DELIVERED and age_days <= settings.stale_shipment_day_limit:
+        # The limits are whole days of age, so a package two days and an hour old is past a limit of two.
+        age = now - changed
+        if status != STATUS_DELIVERED and age <= timedelta(days=settings.stale_shipment_day_limit):
             undelivered.append((changed, item))
-        elif status == STATUS_DELIVERED and age_days <= settings.completed_shipment_days_shown:
+        elif status == STATUS_DELIVERED and age <= timedelta(days=settings.completed_shipment_days_shown):
             delivered.append((changed, item))
 
     undelivered.sort(key=change_time, reverse=True)
@@ -145,15 +149,18 @@ def change_time(item: tuple[datetime, dict[str, Any]]) -> datetime:
 
 
 def status_change_time(shipment: Mapping[str, Any]) -> datetime | None:
-    """When the shipment last changed: its latest event, or its delivery when it has no events."""
+    """When the shipment last changed: its latest event, or its delivery when it has no events, or when it was sent
+    when it has neither, such as one Matkahuolto has only been told about."""
     event = shipment.get("lastEvent")
     if isinstance(event, Mapping) and event.get("time"):
         parsed = parse_time(event["time"])
         if parsed is not None:
             return parsed
         # Matkahuolto has changed the format, and the package would vanish without a word.
-        _LOGGER.warning("Matkahuolto gave an event time that can't be read, %r. Using the delivery time instead", event["time"])
-    return from_milliseconds(parse_int(shipment.get("deliveryTime")))
+        if str(event["time"]) not in _unreadable_times:
+            _unreadable_times.add(str(event["time"]))
+            _LOGGER.warning("Matkahuolto gave an event time that can't be read, %r. Using the delivery time instead", event["time"])
+    return from_milliseconds(parse_int(shipment.get("deliveryTime"))) or from_milliseconds(parse_int(shipment.get("shipmentDate")))
 
 
 def package(shipment: Mapping[str, Any], status: int, changed: datetime, settings: PackageSettings) -> dict[str, Any]:
@@ -161,7 +168,7 @@ def package(shipment: Mapping[str, Any], status: int, changed: datetime, setting
     event = event if isinstance(event, Mapping) else {}
     shipment_date = parse_int(shipment.get("shipmentDate"))
     point = shipment.get("pickupPoint") if isinstance(shipment.get("pickupPoint"), Mapping) else {}
-    shipment_number = shipment.get("shipmentNumber")
+    shipment_number = text(shipment.get("shipmentNumber"))
     return {
         "origin": shipment.get("senderName"),
         "origin_city": shipment.get("senderCity"),
@@ -203,7 +210,7 @@ def pickup_point(point: Mapping[str, Any], shipment: Mapping[str, Any]) -> dict[
     found = {
         "name": point.get("officeName") or shipment.get("destinationPlaceName"),
         "street": point.get("officeStreetAddress"),
-        "postal_code": point.get("officePostalCode"),
+        "postal_code": text(point.get("officePostalCode")),
         "city": point.get("officeCity") or shipment.get("receiverCity"),
         "type": point.get("officeType") or shipment.get("destinationPlaceType"),
         "available": None,
@@ -234,7 +241,10 @@ def parse_time(value: Any) -> datetime | None:
         return None
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=FINNISH_TIME)
-    return parsed.astimezone(FINNISH_TIME)
+    try:
+        return parsed.astimezone(FINNISH_TIME)
+    except OverflowError:
+        return None
 
 
 def from_milliseconds(value: int | None) -> datetime | None:
@@ -252,8 +262,15 @@ def parse_int(value: Any) -> int | None:
         return None
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
+
+
+def text(value: Any) -> str | None:
+    """A text, or a number written as one: package-tracker-card leaves out a package whose number isn't text."""
+    if isinstance(value, bool) or value is None or value == "":
+        return None
+    return str(value) if isinstance(value, (str, int)) else None
 
 
 def tracking_url(shipment_number: Any) -> str | None:

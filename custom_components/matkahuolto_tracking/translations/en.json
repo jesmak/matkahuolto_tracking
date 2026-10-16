@@ -35,11 +35,13 @@
       },
       "reauth_confirm": {
         "title": "Log in again",
-        "description": "Matkahuolto no longer accepts the saved login of **{username}**. Enter the password.",
+        "description": "Matkahuolto no longer accepts the saved login of **{username}**. Enter the password, and the new email address if it has changed.",
         "data": {
+          "username": "Email address",
           "password": "Password"
         },
         "data_description": {
+          "username": "The new one, if the account's email address has changed. The entities keep their IDs.",
           "password": "Kept by Home Assistant, so it can log in again by itself when needed."
         }
       },
@@ -73,11 +75,13 @@
       },
       "reconfigure_login": {
         "title": "Log in again",
-        "description": "The password of **{username}**, if it has changed.",
+        "description": "The password or email address of **{username}**, if they have changed.",
         "data": {
+          "username": "Email address",
           "password": "Password"
         },
         "data_description": {
+          "username": "The new one, if the account's email address has changed. The entities keep their IDs.",
           "password": "Kept by Home Assistant, so it can log in again by itself when needed."
         }
       }
@@ -85,7 +89,8 @@
     "error": {
       "invalid_auth": "Wrong email address or password.",
       "login_rejected": "Matkahuolto turned the login away before checking the password. The integration may need an update.",
-      "cannot_connect": "Matkahuolto couldn't be reached. Try again in a moment."
+      "cannot_connect": "Matkahuolto couldn't be reached. Try again in a moment.",
+      "wrong_account": "That login is for another Matkahuolto account. Log in as {username}."
     },
     "abort": {
       "already_configured": "This account has already been added.",

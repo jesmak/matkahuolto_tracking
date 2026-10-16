@@ -35,11 +35,13 @@
       },
       "reauth_confirm": {
         "title": "Kirjaudu uudelleen",
-        "description": "Matkahuolto ei enää hyväksy tilin **{username}** tallennettua kirjautumista. Anna salasana.",
+        "description": "Matkahuolto ei enää hyväksy tilin **{username}** tallennettua kirjautumista. Anna salasana ja tarvittaessa uusi sähköpostiosoite.",
         "data": {
+          "username": "Sähköpostiosoite",
           "password": "Salasana"
         },
         "data_description": {
+          "username": "Uusi osoite, jos tilin sähköposti on vaihtunut. Entiteettien tunnukset pysyvät ennallaan.",
           "password": "Home Assistant säilyttää sen, jotta se voi tarvittaessa kirjautua uudelleen itse."
         }
       },
@@ -73,11 +75,13 @@
       },
       "reconfigure_login": {
         "title": "Kirjaudu uudelleen",
-        "description": "Tilin **{username}** salasana, jos se on vaihtunut.",
+        "description": "Tilin **{username}** salasana tai sähköpostiosoite, jos ne ovat vaihtuneet.",
         "data": {
+          "username": "Sähköpostiosoite",
           "password": "Salasana"
         },
         "data_description": {
+          "username": "Uusi osoite, jos tilin sähköposti on vaihtunut. Entiteettien tunnukset pysyvät ennallaan.",
           "password": "Home Assistant säilyttää sen, jotta se voi tarvittaessa kirjautua uudelleen itse."
         }
       }
@@ -85,7 +89,8 @@
     "error": {
       "invalid_auth": "Väärä sähköpostiosoite tai salasana.",
       "login_rejected": "Matkahuolto torjui kirjautumisen jo ennen salasanan tarkistusta. Integraatio saattaa tarvita päivityksen.",
-      "cannot_connect": "Matkahuoltoon ei saatu yhteyttä. Yritä hetken päästä uudelleen."
+      "cannot_connect": "Matkahuoltoon ei saatu yhteyttä. Yritä hetken päästä uudelleen.",
+      "wrong_account": "Kirjauduit toiselle Matkahuolto-tilille. Kirjaudu tilille {username}."
     },
     "abort": {
       "already_configured": "Tämä tili on jo lisätty.",

@@ -29,7 +29,12 @@ PAKETIT_CLIENT: Final = "android/1.64.1291"
 LANGUAGES: Final = ["fi", "en"]
 
 # Config entry data. The keys are those of earlier versions, so existing entries keep working.
+# The email address the account was added with. The entities' ids are built from it, so it stays as it was.
 CONF_USERNAME: Final = "username"
+# The email address to log in with, when it has changed since the account was added.
+CONF_EMAIL: Final = "email"
+# The account's id in Matkahuolto's login service, which stays the same when its email changes. Saved at each login.
+CONF_SUBJECT: Final = "subject"
 # Kept so that a login can be made again when the refresh token stops working.
 CONF_PASSWORD: Final = "password"
 CONF_ACCESS_TOKEN: Final = "access_token"
@@ -39,8 +44,8 @@ CONF_PRIORITIZE_UNDELIVERED: Final = "prioritize_undelivered"
 CONF_MAX_SHIPMENTS: Final = "max_shipments"
 CONF_STALE_SHIPMENT_DAY_LIMIT: Final = "stale_shipment_day_limit"
 CONF_COMPLETED_SHIPMENT_DAYS_SHOWN: Final = "completed_shipment_day_shown"
-# Whether packages carry their pickup code. Before 2.3 this was include_pickup_details, a switch that also held back
-# the pickup point.
+# Whether packages carry their pickup code. Before config entry version 2.3 (release 2.2.0) this was
+# include_pickup_details, a switch that also held back the pickup point.
 CONF_PICKUP_CODE: Final = "pickup_code"
 CONF_INCLUDE_PICKUP_DETAILS: Final = "include_pickup_details"
 

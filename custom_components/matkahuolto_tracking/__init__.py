@@ -7,8 +7,9 @@ format package-tracker-card shows.
 from __future__ import annotations
 
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
 
 from .const import (
     CONF_ACCESS_TOKEN,
@@ -62,7 +63,19 @@ async def async_migrate_entry(hass: HomeAssistant, entry: MatkahuoltoConfigEntry
         # The pickup point is now always included, and the switch that held it back with the code became a choice.
         data = {key: value for key, value in entry.data.items() if key != CONF_INCLUDE_PICKUP_DETAILS}
         data[CONF_PICKUP_CODE] = PICKUP_CODE_CODE if entry.data.get(CONF_INCLUDE_PICKUP_DETAILS) else PICKUP_CODE_NONE
-        # Entries from the token era took the email as typed, spaces and all, and logging in again uses it as it is.
-        data[CONF_USERNAME] = str(data[CONF_USERNAME]).strip()
+        # Entries from the token era took the email as typed, spaces and all, and logging in again uses it as it is. The
+        # entities' unique ids are built from it, so they move with it, or they would be left behind for new ones.
+        typed = str(data[CONF_USERNAME])
+        data[CONF_USERNAME] = typed.strip()
+        if typed != data[CONF_USERNAME]:
+            old, new = f"matkahuolto_{typed}", f"matkahuolto_{data[CONF_USERNAME]}"
+
+            @callback
+            def moved(entity: er.RegistryEntry) -> dict[str, str] | None:
+                if entity.unique_id == old or entity.unique_id.startswith(f"{old}_"):
+                    return {"new_unique_id": new + entity.unique_id[len(old) :]}
+                return None
+
+            await er.async_migrate_entries(hass, entry.entry_id, moved)
         hass.config_entries.async_update_entry(entry, data=data, minor_version=3)
     return True

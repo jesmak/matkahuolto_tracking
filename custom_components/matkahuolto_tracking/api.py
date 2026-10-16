@@ -8,6 +8,8 @@ app does. Only when that is refused is the user asked for the password again.
 
 from __future__ import annotations
 
+import base64
+import json
 import logging
 from collections.abc import Callable
 from typing import Any
@@ -42,6 +44,26 @@ class MatkahuoltoLoginRejectedError(MatkahuoltoError):
     """Matkahuolto turned the login away without looking at the password: it no longer takes it as the app's."""
 
 
+class MatkahuoltoPasswordRefusedError(MatkahuoltoAuthError):
+    """The stored password was refused when logging in again. Trying it again would only risk locking the account."""
+
+
+# Pages of shipments read at most, ten shipments each. A hasMore that never turns false can't loop for ever.
+MAX_PAGES = 20
+
+
+def subject_of(access_token: str) -> str | None:
+    """The account's id in Matkahuolto's login service, which stays the same when its email changes: the access
+    token's sub. The token isn't verified, it was just received from Matkahuolto."""
+    try:
+        part = access_token.split(".")[1]
+        claims = json.loads(base64.urlsafe_b64decode(part + "=" * (-len(part) % 4)))
+    except (IndexError, ValueError):
+        return None
+    subject = claims.get("sub") if isinstance(claims, dict) else None
+    return subject if isinstance(subject, str) and subject else None
+
+
 def _tokens(body: Any) -> tuple[str | None, str | None]:
     """The access and refresh token of a Cognito AuthenticationResult."""
     result = body.get("AuthenticationResult") if isinstance(body, dict) else None
@@ -69,10 +91,14 @@ async def log_in(session: aiohttp.ClientSession, username: str, password: str) -
         ) as response:
             status = response.status
             body = await response.json(content_type=None) if status == 200 else await response.text()
-    except (aiohttp.ClientError, TimeoutError, ValueError) as err:
+    except (aiohttp.ClientError, TimeoutError) as err:
         raise MatkahuoltoError(f"Matkahuolto couldn't be reached for logging in: {err}") from err
+    except ValueError as err:
+        raise MatkahuoltoError(f"Matkahuolto's login answer couldn't be read: {err}") from err
 
-    if status in (401, 403):
+    # A wrong password is a 401 with an empty JSON body. A 403 comes from somewhere else, such as a firewall, and says
+    # nothing about the password.
+    if status == 401:
         raise MatkahuoltoAuthError("Matkahuolto didn't accept the email address and password")
     if status == 400:
         raise MatkahuoltoLoginRejectedError(f"Matkahuolto turned the login away: {str(body)[:100]}")
@@ -119,11 +145,21 @@ class MatkahuoltoClient:
         return await self._get(PATH_USER)
 
     async def received_shipments(self) -> list[dict[str, Any]]:
-        data = await self._get(PATH_RECEIVED_SHIPMENTS)
-        shipments = data.get("shipments") if isinstance(data, dict) else None
-        if not isinstance(shipments, list):
-            raise MatkahuoltoError("Matkahuolto sent the shipments in an unexpected format")
-        return [shipment for shipment in shipments if isinstance(shipment, dict)]
+        """Every received shipment, page by page: Matkahuolto answers ten at a time, the next page at its nextOffset."""
+        found: list[dict[str, Any]] = []
+        path = PATH_RECEIVED_SHIPMENTS
+        for _ in range(MAX_PAGES):
+            data = await self._get(path)
+            shipments = data.get("shipments") if isinstance(data, dict) else None
+            if not isinstance(shipments, list):
+                raise MatkahuoltoError("Matkahuolto sent the shipments in an unexpected format")
+            found.extend(shipment for shipment in shipments if isinstance(shipment, dict))
+            offset = data.get("nextOffset")
+            # hasMore is true whenever a page used all its slots, so the page after the last one is empty.
+            if not data.get("hasMore") or not shipments or not isinstance(offset, int) or isinstance(offset, bool):
+                break
+            path = f"{PATH_RECEIVED_SHIPMENTS}/{offset}"
+        return found
 
     async def _get(self, path: str) -> Any:
         status, body = await self._fetch(path)
@@ -147,8 +183,10 @@ class MatkahuoltoClient:
                 if response.status != 200:
                     return response.status, None
                 return response.status, await response.json(content_type=None)
-        except (aiohttp.ClientError, TimeoutError, ValueError) as err:
+        except (aiohttp.ClientError, TimeoutError) as err:
             raise MatkahuoltoError(f"Matkahuolto couldn't be reached: {err}") from err
+        except ValueError as err:
+            raise MatkahuoltoError(f"Matkahuolto's answer couldn't be read: {err}") from err
 
     async def _renew_tokens(self) -> None:
         """A new access token from the refresh token; when that is refused, a new login."""
@@ -158,7 +196,12 @@ class MatkahuoltoClient:
             if not (self._username and self._password):
                 raise
             _LOGGER.debug("The refresh token was refused, logging in again")
-            self._access_token, self._refresh_token = await log_in(self._session, self._username, self._password)
+            try:
+                self._access_token, self._refresh_token = await log_in(self._session, self._username, self._password)
+            except MatkahuoltoAuthError as err:
+                # Not tried again: a few restarts with a changed password would be enough to lock the account.
+                self._password = None
+                raise MatkahuoltoPasswordRefusedError(str(err)) from err
             self._tokens_changed()
 
     def _tokens_changed(self) -> None:
@@ -175,15 +218,18 @@ class MatkahuoltoClient:
             ) as response:
                 status = response.status
                 body = await response.json(content_type=None) if status == 200 else None
-        except (aiohttp.ClientError, TimeoutError, ValueError) as err:
+        except (aiohttp.ClientError, TimeoutError) as err:
             raise MatkahuoltoError(f"Matkahuolto couldn't be reached for a new access token: {err}") from err
+        except ValueError as err:
+            raise MatkahuoltoError(f"Matkahuolto's answer to refreshing the access token couldn't be read: {err}") from err
 
-        # A server error says nothing about the tokens: try again at the next update.
-        if status >= 500:
-            raise MatkahuoltoError(f"Matkahuolto couldn't refresh the access token (status {status})")
+        # Only a 400 or 401, or an answer without a token, says the refresh token is gone. A server error, a 429 or a
+        # firewall's 403 says nothing about it: try again at the next update.
         access_token, refresh_token = _tokens(body)
         if access_token is None:
-            raise MatkahuoltoAuthError("Matkahuolto didn't give a new access token")
+            if status in (200, 400, 401):
+                raise MatkahuoltoAuthError(f"Matkahuolto didn't give a new access token (status {status})")
+            raise MatkahuoltoError(f"Matkahuolto couldn't refresh the access token (status {status})")
 
         self._access_token = access_token
         # A rotated refresh token replaces the old one, which stops working after a while.

@@ -45,16 +45,21 @@ Paketit app does. The website's login needs a reCAPTCHA, while the app's doesn't
 browser.
 
 Home Assistant keeps the password, so that the integration can log in again by itself when its session runs out. It
-asks for the password only if Matkahuolto stops accepting it, for example after you change it. Anyone who can read
-Home Assistant's configuration or a backup of it can read the password too.
+asks for the password only if Matkahuolto stops accepting it, for example after you change it. The refused password
+is deleted then and never tried again, so that restarting Home Assistant a few times can't lock the account. Anyone who
+can read Home Assistant's configuration or a backup of it can read the password too.
+
+Logging in again asks for the email address as well, filled in with the one in use, so a changed address can be given.
+The account is recognised by its id in Matkahuolto's login service, so a login to another account is refused, and the
+sensors keep their entity IDs.
 
 Because the login imitates the app, a change at Matkahuolto's end can stop it. If the setup says Matkahuolto turned
 the login away, the integration needs an update.
 
 ## Settings
 
-Each account is added separately. To change its settings, or to log in again with a new password, choose
-**Reconfigure** from the account's menu on the integration page.
+Each account is added separately. To change its settings, or to log in again with a new password or email address,
+choose **Reconfigure** from the account's menu on the integration page.
 
 | Name                                       | Type    | Description                                                                      | Default                   |
 | ------------------------------------------ | ------- | -------------------------------------------------------------------------------- | ------------------------- |
@@ -124,7 +129,8 @@ account within the days set above, also those the list has no room for.
 
 An event entity, **Package**, fires once for everything that happens to a package, so an automation can act on it
 without watching the packages attribute. Several packages changing in one update fire one event each, packages the
-list has no room for included.
+list has no room for included. A new package that is already ready for pickup or delivered when it is first seen fires
+`new_package` and then that status's event, so an automation listening for either hears of it.
 
 | Event type         | When it fires                                 |
 | ------------------ | --------------------------------------------- |
@@ -137,7 +143,8 @@ The event carries the package it happened to, with `shipment_number`, `status`, 
 `destination`, `destination_city`, `latest_event`, `latest_event_city`, `latest_event_date` and `source`.
 
 Nothing fires for the packages that are already there when Home Assistant starts, or when the integration is reloaded,
-since they have not just happened. A change while Home Assistant was off fires nothing either.
+since they have not just happened. A change while Home Assistant was off fires nothing either. A package missing from
+one of Matkahuolto's answers and back in the next is compared with how it was, not reported as new.
 
 ## Examples
 

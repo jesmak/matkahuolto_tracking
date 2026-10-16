@@ -44,7 +44,7 @@ async def set_up(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> MockCon
 async def test_the_counts_of_the_packages(hass: HomeAssistant, matkahuolto: AiohttpClientMocker, freezer: FrozenDateTimeFactory) -> None:
     await set_up(hass, freezer)
 
-    assert hass.states.get(ON_THE_WAY).state == "2", "ready for pickup and in transport"
+    assert hass.states.get(ON_THE_WAY).state == "3", "ready for pickup, in transport and announced"
     assert hass.states.get(ON_THE_WAY).attributes["state_class"] == "measurement"
     assert hass.states.get(READY).state == "1"
     registry = er.async_get(hass)
@@ -157,3 +157,55 @@ async def test_an_event_after_a_failed_update_does_not_come_from_unavailable(
     # An automation leaves out a change from unavailable, as the entity coming back, so the event must not be one.
     [(before, _)] = [write for write in writes if write[1] == "ready_for_pickup"]
     assert before != "unavailable"
+
+
+async def test_a_package_missing_from_one_answer_is_not_new_when_it_comes_back(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer: FrozenDateTimeFactory
+) -> None:
+    both = [shipment("MH0301", 35, "2026-09-16T08:30:00"), shipment("MH0302", 35, "2026-09-16T08:40:00")]
+    shipments = list(both)
+    aioclient_mock.get(USER_URL, json={"email": USERNAME})
+    aioclient_mock.get(SHIPMENTS_URL, side_effect=lambda *_: answer(shipments))
+    await set_up(hass, freezer)
+    seen: list[str] = []
+    hass.bus.async_listen(
+        "state_changed",
+        lambda call: (
+            seen.append(call.data["new_state"].attributes.get("event_type"))
+            if call.data["entity_id"] == EVENT_ENTITY and call.data["new_state"]
+            else None
+        ),
+    )
+
+    for answer_now in (both[:1], [], both):
+        shipments[:] = answer_now
+        freezer.tick(timedelta(minutes=11))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+
+    assert seen == [], "nothing happened to the packages"
+
+
+async def test_a_package_first_seen_at_its_pickup_point_fires_both_events(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer: FrozenDateTimeFactory
+) -> None:
+    shipments: list[dict[str, Any]] = []
+    aioclient_mock.get(USER_URL, json={"email": USERNAME})
+    aioclient_mock.get(SHIPMENTS_URL, side_effect=lambda *_: answer(shipments))
+    await set_up(hass, freezer)
+    seen: list[str] = []
+    hass.bus.async_listen(
+        "state_changed",
+        lambda call: (
+            seen.append(call.data["new_state"].attributes.get("event_type"))
+            if call.data["entity_id"] == EVENT_ENTITY and call.data["new_state"]
+            else None
+        ),
+    )
+
+    shipments[:] = [shipment("MH0401", 55, "2026-09-16T08:30:00")]
+    freezer.tick(timedelta(minutes=11))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert [event for event in seen if event] == ["new_package", "ready_for_pickup"]

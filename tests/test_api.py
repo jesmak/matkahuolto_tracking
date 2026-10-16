@@ -13,7 +13,9 @@ from custom_components.matkahuolto_tracking.api import (
     MatkahuoltoClient,
     MatkahuoltoError,
     MatkahuoltoLoginRejectedError,
+    MatkahuoltoPasswordRefusedError,
     log_in,
+    subject_of,
 )
 
 from .conftest import (
@@ -27,6 +29,7 @@ from .conftest import (
     REFRESH_URL,
     SHIPMENTS,
     SHIPMENTS_URL,
+    SUBJECT,
     USERNAME,
     answers,
 )
@@ -164,3 +167,67 @@ async def test_a_rotated_refresh_token_is_kept(hass: HomeAssistant, aioclient_mo
     await matkahuolto.received_shipments()
     assert matkahuolto.refresh_token == "refresh-2"
     assert saved == [(NEW_ACCESS_TOKEN, "refresh-2")], "the old one stops working after a while, so the new one is saved"
+
+
+async def test_every_page_of_received_shipments(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    # Ten slots a page: hasMore says only that a page used them all, so the page after the last one is empty.
+    aioclient_mock.get(SHIPMENTS_URL, json={"shipments": SHIPMENTS[:3], "hasMore": True, "nextOffset": 10})
+    aioclient_mock.get(f"{SHIPMENTS_URL}/10", json={"shipments": SHIPMENTS[3:], "hasMore": True, "nextOffset": 20})
+    aioclient_mock.get(f"{SHIPMENTS_URL}/20", json={"shipments": [], "hasMore": False, "nextOffset": 21})
+
+    found = await client(hass).received_shipments()
+
+    assert [shipment["shipmentNumber"] for shipment in found] == [shipment["shipmentNumber"] for shipment in SHIPMENTS]
+    assert [str(call[1]).split("?")[0] for call in aioclient_mock.mock_calls] == [
+        SHIPMENTS_URL,
+        f"{SHIPMENTS_URL}/10",
+        f"{SHIPMENTS_URL}/20",
+    ]
+
+
+async def test_a_has_more_that_never_ends_stops(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    aioclient_mock.get(SHIPMENTS_URL, json={"shipments": SHIPMENTS[:1], "hasMore": True, "nextOffset": 10})
+    aioclient_mock.get(f"{SHIPMENTS_URL}/10", json={"shipments": SHIPMENTS[:1], "hasMore": True, "nextOffset": 10})
+
+    await client(hass).received_shipments()
+
+    assert aioclient_mock.call_count == 20
+
+
+async def test_a_403_at_login_is_no_wrong_password(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    # A wrong password is a 401. A 403, such as a firewall's page, says nothing about the password.
+    aioclient_mock.post(AUTH_URL, status=403, text="<html>Forbidden</html>")
+    with pytest.raises(MatkahuoltoError) as error:
+        await log_in(async_get_clientsession(hass), USERNAME, PASSWORD)
+    assert not isinstance(error.value, MatkahuoltoAuthError)
+
+
+@pytest.mark.parametrize("status", [403, 404, 429])
+async def test_a_refresh_turned_away_for_another_reason_is_tried_again_later(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, status: int
+) -> None:
+    aioclient_mock.get(SHIPMENTS_URL, status=401)
+    aioclient_mock.post(REFRESH_URL, status=status)
+    with pytest.raises(MatkahuoltoError) as error:
+        await client(hass, password=PASSWORD).received_shipments()
+    assert not isinstance(error.value, MatkahuoltoAuthError)
+    assert not [call for call in aioclient_mock.mock_calls if str(call[1]).startswith(AUTH_URL)], "no needless login"
+
+
+async def test_a_refused_password_says_so(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    aioclient_mock.get(SHIPMENTS_URL, status=401)
+    aioclient_mock.post(REFRESH_URL, status=401)
+    aioclient_mock.post(AUTH_URL, status=401)
+    with pytest.raises(MatkahuoltoPasswordRefusedError):
+        await client(hass, password=PASSWORD).received_shipments()
+
+
+async def test_an_answer_that_is_not_json(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    aioclient_mock.get(SHIPMENTS_URL, text="<html>Maintenance</html>")
+    with pytest.raises(MatkahuoltoError, match="couldn't be read"):
+        await client(hass).received_shipments()
+
+
+def test_the_account_s_id_is_its_access_token_s_sub() -> None:
+    assert subject_of(NEW_ACCESS_TOKEN) == SUBJECT
+    assert subject_of("not a token") is None

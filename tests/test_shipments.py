@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
 
-from custom_components.matkahuolto_tracking.shipments import Packages, PackageSettings, build_packages, map_raw_status
+from custom_components.matkahuolto_tracking import shipments as shipments_module
+from custom_components.matkahuolto_tracking.shipments import Packages, PackageSettings, build_packages, map_raw_status, parse_int
 
 from .conftest import NOW, SHIPMENTS, milliseconds, shipment
 
@@ -32,7 +33,7 @@ def test_matkahuolto_status_codes(raw_status: int, status: int) -> None:
 
 def test_undelivered_packages_come_first_and_old_ones_are_hidden() -> None:
     packages = build_packages(SHIPMENTS, SETTINGS, NOW)
-    assert numbers(packages) == ["MH0002", "MH0001", "MH0006", "MH0003"]
+    assert numbers(packages) == ["MH0002", "MH0001", "MH0007", "MH0006", "MH0003"]
     assert packages.latest_change.isoformat() == "2026-09-16T08:30:00+03:00"
 
 
@@ -42,7 +43,7 @@ def test_newest_first_when_undelivered_packages_are_not_prioritised() -> None:
 
 
 def test_package_attributes() -> None:
-    _, ready, delivered_without_events, _ = build_packages(SHIPMENTS, SETTINGS, NOW).packages
+    _, ready, _announced, delivered_without_events, _ = build_packages(SHIPMENTS, SETTINGS, NOW).packages
     assert ready == {
         "origin": "Example Shop",
         "origin_city": "Helsinki",
@@ -182,12 +183,12 @@ def test_a_package_listed_twice_is_kept_once_as_its_newest_copy() -> None:
     newer = shipment("MH0600", 55, "2026-09-16T11:30:00")
     older = shipment("MH0600", 35, "2026-09-16T08:30:00")
     for twice in ([newer, older], [older, newer]):
-        assert [package["status"] for package in build_packages(twice, SETTINGS, NOW).every] == [5]
+        assert [package["status"] for package in build_packages(twice, SETTINGS, NOW).every.values()] == [5]
 
 
 def test_a_package_without_a_number_is_left_out() -> None:
     nameless = {key: value for key, value in shipment("MH0601", 35, "2026-09-16T08:30:00").items() if key != "shipmentNumber"}
-    assert build_packages([nameless], SETTINGS, NOW).every == []
+    assert build_packages([nameless], SETTINGS, NOW).every == {}
 
 
 def test_an_event_time_that_cannot_be_read_falls_back_to_the_delivery(caplog: pytest.LogCaptureFixture) -> None:
@@ -209,3 +210,30 @@ def test_a_pickup_code_of_zero_is_a_code() -> None:
     zero = {**shipment("MH0802", 55, "2026-09-16T08:30:00"), "deliveryPinCode": 0}
     [package] = build_packages([zero], replace(SETTINGS, pickup_code="code"), NOW).packages
     assert package["pickup_code"] == "0"
+
+
+def test_the_day_limits_count_the_hours_too() -> None:
+    # Delivered three days and an hour ago is past a limit of three days.
+    late = (NOW - timedelta(days=3, hours=1)).astimezone(shipments_module.FINNISH_TIME).replace(tzinfo=None).isoformat()
+    delivered = shipment("MH0030", 62, late, event="Lähetys on toimitettu")
+    assert build_packages([delivered], SETTINGS, NOW).packages == []
+    assert numbers(build_packages([delivered], replace(SETTINGS, completed_shipment_days_shown=4), NOW)) == ["MH0030"]
+
+
+def test_an_odd_number_takes_nothing_down() -> None:
+    assert parse_int(float("inf")) is None
+    odd = {**shipment("MH0031", 35), "deliveryTime": float("inf"), "lastEvent": {"time": "9999-12-31T23:59:59+14:00"}}
+    build_packages([odd], SETTINGS, NOW)
+
+
+def test_a_number_given_as_a_number_is_text() -> None:
+    # package-tracker-card leaves out a package whose number isn't text.
+    [package] = build_packages([{**shipment("MH0032", 35, "2026-09-16T08:30:00"), "shipmentNumber": 123456}], SETTINGS, NOW).packages
+    assert package["shipment_number"] == "123456"
+
+
+def test_an_unreadable_time_is_warned_of_once(caplog: pytest.LogCaptureFixture) -> None:
+    odd = shipment("MH0033", 35, "the 16th of September")
+    build_packages([odd], SETTINGS, NOW)
+    build_packages([odd], SETTINGS, NOW)
+    assert caplog.text.count("can't be read") == 1

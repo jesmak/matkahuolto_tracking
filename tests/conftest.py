@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import json
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
@@ -21,7 +23,20 @@ USERNAME = "matti.meikalainen@example.com"
 PASSWORD = "Salasana-123"
 ACCESS_TOKEN = "access-token"
 REFRESH_TOKEN = "refresh-token"
-NEW_ACCESS_TOKEN = "new-access-token"
+
+
+def jwt(**claims: Any) -> str:
+    """A token shaped like Cognito's, with the given claims. It is never verified."""
+
+    def part(data: dict[str, Any]) -> str:
+        return base64.urlsafe_b64encode(json.dumps(data).encode()).decode().rstrip("=")
+
+    return f"{part({'alg': 'RS256'})}.{part(claims)}.signature"
+
+
+# The account's id in Matkahuolto's login service, the sub of its access tokens.
+SUBJECT = "a1b2c3d4-0000-4000-8000-000000000001"
+NEW_ACCESS_TOKEN = jwt(sub=SUBJECT, token_use="access")
 NEW_REFRESH_TOKEN = "new-refresh-token"
 
 ENTRY_DATA = {
@@ -73,6 +88,7 @@ def shipment(
     *,
     event: str = "Lähetys on noudettavissa",
     delivery_time: int | None = None,
+    shipment_date: int | None = milliseconds(datetime(2026, 9, 14, 6, 0, tzinfo=UTC)),
 ) -> dict[str, Any]:
     """A received shipment shaped like Matkahuolto's. Event times are Finnish time without a zone, as Matkahuolto
     gives them; other times are milliseconds since the epoch."""
@@ -83,7 +99,7 @@ def shipment(
         "senderCity": "Helsinki",
         "destinationPlaceName": "Example Market Keskusta",
         "receiverCity": "Lappeenranta",
-        "shipmentDate": milliseconds(datetime(2026, 9, 14, 6, 0, tzinfo=UTC)),
+        "shipmentDate": shipment_date,
         "deliveryTime": delivery_time,
     }
     if event_time is not None:
@@ -104,8 +120,10 @@ SHIPMENTS = [
     shipment("MH0005", 40, "2026-08-20T09:00:00", event="Lähetys on jakelussa"),
     # Delivered this morning, without events.
     shipment("MH0006", "65", delivery_time=milliseconds(datetime(2026, 9, 16, 5, 0, tzinfo=UTC))),
-    # No time at all: skipped.
+    # Without events or a delivery, such as one only announced: listed by when it was sent.
     shipment("MH0007", 20),
+    # No time at all: skipped.
+    shipment("MH0008", 20, shipment_date=None),
 ]
 
 

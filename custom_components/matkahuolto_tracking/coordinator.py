@@ -12,9 +12,10 @@ from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .api import MatkahuoltoAuthError, MatkahuoltoClient, MatkahuoltoError
+from .api import MatkahuoltoAuthError, MatkahuoltoClient, MatkahuoltoError, MatkahuoltoPasswordRefusedError
 from .const import (
     CONF_ACCESS_TOKEN,
+    CONF_EMAIL,
     CONF_LANGUAGE,
     CONF_PASSWORD,
     CONF_REFRESH_TOKEN,
@@ -49,7 +50,7 @@ class MatkahuoltoCoordinator(DataUpdateCoordinator[Packages]):
             entry.data[CONF_REFRESH_TOKEN],
             entry.data[CONF_LANGUAGE],
             self._save_tokens,
-            entry.data[CONF_USERNAME],
+            entry.data.get(CONF_EMAIL) or entry.data[CONF_USERNAME],
             entry.data.get(CONF_PASSWORD),
         )
 
@@ -78,6 +79,11 @@ class MatkahuoltoCoordinator(DataUpdateCoordinator[Packages]):
     async def _async_update_data(self) -> Packages:
         try:
             shipments = await self.client.received_shipments()
+        except MatkahuoltoPasswordRefusedError as err:
+            # Dropped, so that no restart tries it again before the user gives the new one.
+            data = {key: value for key, value in self.config_entry.data.items() if key != CONF_PASSWORD}
+            self.hass.config_entries.async_update_entry(self.config_entry, data=data)
+            raise ConfigEntryAuthFailed(str(err)) from err
         except MatkahuoltoAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except MatkahuoltoError as err:

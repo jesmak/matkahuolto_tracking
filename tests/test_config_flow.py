@@ -19,6 +19,7 @@ from .conftest import (
     PASSWORD,
     SHIPMENTS,
     SHIPMENTS_URL,
+    SUBJECT,
     USER_URL,
     USERNAME,
 )
@@ -48,6 +49,8 @@ STORED_NEW_SETTINGS = {
     "pickup_code": "code",
 }
 NEW_TOKENS = {"access_token": NEW_ACCESS_TOKEN, "refresh_token": NEW_REFRESH_TOKEN}
+# What a login again saves: the tokens, the account's id, and the email it logged in with.
+NEW_LOGIN = {**NEW_TOKENS, "subject": SUBJECT, "email": USERNAME}
 
 
 def expect_login(aioclient_mock: AiohttpClientMocker) -> None:
@@ -81,7 +84,7 @@ async def test_adding_an_account(hass: HomeAssistant, aioclient_mock: AiohttpCli
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == USERNAME
-    assert result["data"] == {**ENTRY_DATA, **NEW_TOKENS}
+    assert result["data"] == {**ENTRY_DATA, **NEW_TOKENS, "subject": SUBJECT}
     assert result["result"].unique_id == USERNAME
     await hass.async_block_till_done()
     assert hass.states.get("sensor.matkahuolto_matti_meikalainen_example_com") is not None
@@ -129,12 +132,12 @@ async def test_logging_in_again_when_the_login_stops_working(hass: HomeAssistant
     result = await entry.start_reauth_flow(hass)
     assert result["step_id"] == "reauth_confirm"
     assert result["description_placeholders"]["username"] == USERNAME
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"password": PASSWORD})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"username": USERNAME, "password": PASSWORD})
     await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reauth_successful"
-    assert entry.data == {**ENTRY_DATA, **NEW_TOKENS}
+    assert entry.data == {**ENTRY_DATA, **NEW_LOGIN}
 
 
 async def test_a_wrong_password_when_logging_in_again(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
@@ -142,7 +145,7 @@ async def test_a_wrong_password_when_logging_in_again(hass: HomeAssistant, aiocl
     entry = account(hass, access_token="expired", refresh_token="expired")
 
     result = await entry.start_reauth_flow(hass)
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"password": "wrong"})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"username": USERNAME, "password": "wrong"})
 
     assert result["errors"] == {"base": "invalid_auth"}
     assert entry.data["refresh_token"] == "expired"
@@ -174,8 +177,59 @@ async def test_a_new_password_from_reconfigure(hass: HomeAssistant, aioclient_mo
 
     result = await start_reconfigure(hass, entry, "reconfigure_login")
     assert result["step_id"] == "reconfigure_login"
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"password": PASSWORD})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"username": USERNAME, "password": PASSWORD})
     await hass.async_block_till_done()
 
     assert result["reason"] == "reconfigure_successful"
-    assert entry.data == {**ENTRY_DATA, **NEW_TOKENS}
+    assert entry.data == {**ENTRY_DATA, **NEW_LOGIN}
+
+
+async def test_logging_in_again_offers_the_email_in_use(hass: HomeAssistant) -> None:
+    entry = account(hass, email="matti.uusi@example.com")
+
+    result = await entry.start_reauth_flow(hass)
+
+    [field] = [key for key in result["data_schema"].schema if key == "username"]
+    assert field.description == {"suggested_value": "matti.uusi@example.com"}
+    assert result["description_placeholders"]["username"] == "matti.uusi@example.com"
+
+
+async def test_logging_in_again_after_the_email_changed(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    expect_login(aioclient_mock)
+    entry = account(hass, subject=SUBJECT, access_token="expired", refresh_token="expired")
+
+    result = await entry.start_reauth_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"username": " matti.uusi@example.com ", "password": PASSWORD}
+    )
+    await hass.async_block_till_done()
+
+    assert result["reason"] == "reauth_successful"
+    # The entities keep their ids, built from the email the account was added with. The new one logs in.
+    assert entry.data == {**ENTRY_DATA, **NEW_LOGIN, "email": "matti.uusi@example.com"}
+    assert entry.title == "matti.uusi@example.com"
+    [(_method, _url, posted, _headers)] = [call for call in aioclient_mock.mock_calls if call[0] == "POST"]
+    assert posted["username"] == "matti.uusi@example.com"
+
+
+async def test_logging_in_again_as_another_account(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    expect_login(aioclient_mock)
+    entry = account(hass, subject="someone-else", access_token="expired", refresh_token="expired")
+
+    result = await entry.start_reauth_flow(hass)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"username": USERNAME, "password": PASSWORD})
+
+    assert result["errors"] == {"base": "wrong_account"}
+    assert entry.data["refresh_token"] == "expired"
+
+
+async def test_an_entry_without_an_id_is_matched_by_its_email(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    expect_login(aioclient_mock)
+    entry = account(hass, access_token="expired", refresh_token="expired")
+
+    result = await entry.start_reauth_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"username": "someone.else@example.com", "password": PASSWORD}
+    )
+
+    assert result["errors"] == {"base": "wrong_account"}

@@ -7,7 +7,7 @@ from typing import Any
 
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker, AiohttpClientMockResponse
@@ -109,10 +109,12 @@ async def test_every_change_of_one_update_fires_its_own_event(
     seen: list[str] = []
     hass.bus.async_listen(
         "state_changed",
-        lambda call: (
-            seen.append(call.data["new_state"].attributes.get("event_type"))
-            if call.data["entity_id"] == EVENT_ENTITY and call.data["new_state"]
-            else None
+        callback(
+            lambda call: (
+                seen.append(call.data["new_state"].attributes.get("event_type"))
+                if call.data["entity_id"] == EVENT_ENTITY and call.data["new_state"]
+                else None
+            )
         ),
     )
 
@@ -147,10 +149,12 @@ async def test_an_event_after_a_failed_update_does_not_come_from_unavailable(
     writes: list[tuple[str, str | None]] = []
     hass.bus.async_listen(
         "state_changed",
-        lambda call: (
-            writes.append((call.data["old_state"].state, call.data["new_state"].attributes.get("event_type")))
-            if call.data["entity_id"] == EVENT_ENTITY
-            else None
+        callback(
+            lambda call: (
+                writes.append((call.data["old_state"].state, call.data["new_state"].attributes.get("event_type")))
+                if call.data["entity_id"] == EVENT_ENTITY
+                else None
+            )
         ),
     )
     down = False
@@ -176,10 +180,12 @@ async def test_a_package_missing_from_one_answer_is_not_new_when_it_comes_back(
     seen: list[str] = []
     hass.bus.async_listen(
         "state_changed",
-        lambda call: (
-            seen.append(call.data["new_state"].attributes.get("event_type"))
-            if call.data["entity_id"] == EVENT_ENTITY and call.data["new_state"]
-            else None
+        callback(
+            lambda call: (
+                seen.append(call.data["new_state"].attributes.get("event_type"))
+                if call.data["entity_id"] == EVENT_ENTITY and call.data["new_state"]
+                else None
+            )
         ),
     )
 
@@ -203,10 +209,12 @@ async def test_a_package_first_seen_at_its_pickup_point_fires_both_events(
     seen: list[str] = []
     hass.bus.async_listen(
         "state_changed",
-        lambda call: (
-            seen.append(call.data["new_state"].attributes.get("event_type"))
-            if call.data["entity_id"] == EVENT_ENTITY and call.data["new_state"]
-            else None
+        callback(
+            lambda call: (
+                seen.append(call.data["new_state"].attributes.get("event_type"))
+                if call.data["entity_id"] == EVENT_ENTITY and call.data["new_state"]
+                else None
+            )
         ),
     )
 

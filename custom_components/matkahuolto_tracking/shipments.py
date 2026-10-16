@@ -207,11 +207,12 @@ def package(shipment: Mapping[str, Any], status: int, changed: datetime, setting
     point = shipment.get("pickupPoint") if isinstance(shipment.get("pickupPoint"), Mapping) else {}
     shipment_number = text(shipment.get("shipmentNumber"))
     return {
-        # The sender of a sent package is the user, so it says nothing. Its recipient is where it goes without a pickup
-        # point.
+        # The sender of a sent package is the user, so it says nothing. Who it goes to is named instead, which
+        # package-tracker-card shows in the sender's place.
         "origin": None if sent else shipment.get("senderName"),
         "origin_city": None if sent else shipment.get("senderCity"),
-        "destination": shipment.get("destinationPlaceName") or (shipment.get("receiverName") if sent else None),
+        "recipient": text(shipment.get("receiverName")) if sent else None,
+        "destination": shipment.get("destinationPlaceName"),
         "destination_city": shipment.get("receiverCity"),
         "shipment_number": shipment_number,
         "shipment_date": iso(from_milliseconds(shipment_date)),

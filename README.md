@@ -90,7 +90,8 @@ The `packages` attribute lists the packages, and each package has these keys.
 | `raw_status`                        | Matkahuolto's own status code                                                       |
 | `direction`                         | `incoming`, or `outgoing` for a package sent from the account                       |
 | `origin`, `origin_city`             | The sender and its city. Empty for a package you sent                               |
-| `destination`, `destination_city`   | The pickup point, or the recipient of one you sent, and the receiver's city         |
+| `recipient`                         | Who a package you sent goes to                                                      |
+| `destination`, `destination_city`   | The pickup point and the receiver's city                                            |
 | `shipment_date`                     | When the package was sent                                                           |
 | `latest_event`, `latest_event_city` | The latest event and where it happened                                              |
 | `latest_event_date`                 | When the package last changed                                                       |

@@ -48,6 +48,7 @@ def test_package_attributes() -> None:
     assert ready == {
         "origin": "Example Shop",
         "origin_city": "Helsinki",
+        "recipient": None,
         "destination": "Example Market Keskusta",
         "destination_city": "Lappeenranta",
         "shipment_number": "MH0001",
@@ -251,7 +252,8 @@ def test_a_sent_package_says_so_and_names_its_recipient() -> None:
     [package] = build_packages([], SETTINGS, NOW, [to_home]).packages
     assert package["direction"] == "outgoing"
     assert (package["origin"], package["origin_city"]) == (None, None), "its sender is the user"
-    assert package["destination"] == "Maija Mallikas", "where it goes without a pickup point"
+    assert package["recipient"] == "Maija Mallikas", "who it goes to, in its own key"
+    assert package["destination"] is None, "a place, not the recipient"
     [package] = build_packages([], SETTINGS, NOW, [sent("MH1002", 55, "2026-09-16T08:30:00")]).packages
     assert package["destination"] == "Example Market Keskusta", "the pickup point when it has one"
 

@@ -78,7 +78,9 @@ class MatkahuoltoCoordinator(DataUpdateCoordinator[Packages]):
 
     async def _async_update_data(self) -> Packages:
         try:
-            shipments = await self.client.received_shipments()
+            received = await self.client.received_shipments()
+            # Not asked for when they would be left out anyway.
+            sent = await self.client.sent_shipments() if self.settings.max_outgoing_shipments > 0 else []
         except MatkahuoltoPasswordRefusedError as err:
             # Dropped, so that no restart tries it again before the user gives the new one.
             data = {key: value for key, value in self.config_entry.data.items() if key != CONF_PASSWORD}
@@ -88,4 +90,4 @@ class MatkahuoltoCoordinator(DataUpdateCoordinator[Packages]):
             raise ConfigEntryAuthFailed(str(err)) from err
         except MatkahuoltoError as err:
             raise UpdateFailed(str(err)) from err
-        return build_packages(shipments, self.settings, dt_util.now())
+        return build_packages(received, self.settings, dt_util.now(), sent)

@@ -1,4 +1,4 @@
-"""Matkahuolto's web service: the account and the packages sent to it.
+"""Matkahuolto's web service: the account, the packages sent to it, and those it has sent.
 
 Requests carry the access token of a login to matkahuolto.fi. When it has
 expired, the refresh token gets a new one. When that fails too, the account logs
@@ -23,6 +23,7 @@ from .const import (
     PATH_AUTH,
     PATH_RECEIVED_SHIPMENTS,
     PATH_REFRESH_TOKEN,
+    PATH_SENT_SHIPMENTS,
     PATH_USER,
     USER_AGENT,
 )
@@ -145,9 +146,15 @@ class MatkahuoltoClient:
         return await self._get(PATH_USER)
 
     async def received_shipments(self) -> list[dict[str, Any]]:
-        """Every received shipment, page by page: Matkahuolto answers ten at a time, the next page at its nextOffset."""
+        return await self._shipments(PATH_RECEIVED_SHIPMENTS)
+
+    async def sent_shipments(self) -> list[dict[str, Any]]:
+        return await self._shipments(PATH_SENT_SHIPMENTS)
+
+    async def _shipments(self, base: str) -> list[dict[str, Any]]:
+        """Every shipment of a list, page by page: Matkahuolto answers ten at a time, the next page at its nextOffset."""
         found: list[dict[str, Any]] = []
-        path = PATH_RECEIVED_SHIPMENTS
+        path = base
         for _ in range(MAX_PAGES):
             data = await self._get(path)
             shipments = data.get("shipments") if isinstance(data, dict) else None
@@ -158,7 +165,7 @@ class MatkahuoltoClient:
             # hasMore is true whenever a page used all its slots, so the page after the last one is empty.
             if not data.get("hasMore") or not shipments or not isinstance(offset, int) or isinstance(offset, bool):
                 break
-            path = f"{PATH_RECEIVED_SHIPMENTS}/{offset}"
+            path = f"{base}/{offset}"
         return found
 
     async def _get(self, path: str) -> Any:

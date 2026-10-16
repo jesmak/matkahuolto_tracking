@@ -17,6 +17,7 @@
                         "shipment_number": "MH00010000000000011",
                         "shipment_date": "2026-10-11T09:00:00+03:00",
                         "status": 5,
+                        "direction": "incoming",
                         "raw_status": 55,
                         "latest_event": "The shipment can be picked up",
                         "latest_event_city": "Tampere",
@@ -47,6 +48,7 @@
                         "shipment_number": "MH00010000000000022",
                         "shipment_date": "2026-10-13T15:00:00+03:00",
                         "status": 3,
+                        "direction": "incoming",
                         "raw_status": 35,
                         "latest_event": "The shipment is on its way",
                         "latest_event_city": "Kuopio",
@@ -77,6 +79,7 @@
                         "shipment_number": "MH00010000000000033",
                         "shipment_date": "2026-10-07T10:00:00+03:00",
                         "status": 0,
+                        "direction": "incoming",
                         "raw_status": 60,
                         "latest_event": "The shipment has been delivered",
                         "latest_event_city": "Tampere",
@@ -97,11 +100,11 @@
         },
         "sensor.matkahuolto_matti_meikalainen_example_com_packages_on_the_way": {
             "state": "2",
-            "attributes": { "friendly_name": "Packages on the way", "icon": "mdi:package-variant-closed", "state_class": "measurement" }
+            "attributes": { "friendly_name": "Incoming on the way", "icon": "mdi:package-variant-closed", "state_class": "measurement" }
         },
         "sensor.matkahuolto_matti_meikalainen_example_com_packages_ready_for_pickup": {
             "state": "1",
-            "attributes": { "friendly_name": "Packages ready for pickup", "icon": "mdi:package-down", "state_class": "measurement" }
+            "attributes": { "friendly_name": "Incoming ready for pickup", "icon": "mdi:package-down", "state_class": "measurement" }
         }
     },
     "shots": [

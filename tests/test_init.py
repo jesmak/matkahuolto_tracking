@@ -25,6 +25,7 @@ from .conftest import (
     NOW,
     PASSWORD,
     REFRESH_URL,
+    SENT_URL,
     SHIPMENTS,
     SHIPMENTS_URL,
     USERNAME,
@@ -40,7 +41,7 @@ def account(hass: HomeAssistant, **options: object) -> MockConfigEntry:
         domain=DOMAIN,
         title=USERNAME,
         version=options.pop("version", 2),
-        minor_version=options.pop("minor_version", 3),
+        minor_version=options.pop("minor_version", 4),
         unique_id=options.pop("unique_id", USERNAME),
         data=data if data is not None else {**ENTRY_DATA, **options},
     )
@@ -77,7 +78,7 @@ async def test_an_entry_of_an_earlier_version_gets_a_unique_id(hass: HomeAssista
     await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.LOADED
-    assert (entry.minor_version, entry.unique_id) == (3, USERNAME)
+    assert (entry.minor_version, entry.unique_id) == (4, USERNAME)
 
 
 async def test_a_refreshed_access_token_is_saved(
@@ -85,6 +86,7 @@ async def test_a_refreshed_access_token_is_saved(
 ) -> None:
     freezer.move_to(NOW)
     aioclient_mock.get(SHIPMENTS_URL, side_effect=answers((401, None), (200, {"shipments": SHIPMENTS})))
+    aioclient_mock.get(SENT_URL, json={"shipments": []})
     aioclient_mock.post(REFRESH_URL, json={"AuthenticationResult": {"AccessToken": NEW_ACCESS_TOKEN}})
     entry = account(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
@@ -100,6 +102,7 @@ async def test_tokens_that_stop_working_log_in_again(
 ) -> None:
     freezer.move_to(NOW)
     aioclient_mock.get(SHIPMENTS_URL, side_effect=answers((401, None), (200, {"shipments": SHIPMENTS})))
+    aioclient_mock.get(SENT_URL, json={"shipments": []})
     aioclient_mock.post(REFRESH_URL, status=401)
     aioclient_mock.post(AUTH_URL, json=LOGIN)
     entry = account(hass)
@@ -113,6 +116,7 @@ async def test_tokens_that_stop_working_log_in_again(
 
 async def test_a_password_that_stops_working_asks_for_a_new_one(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.get(SHIPMENTS_URL, status=401)
+    aioclient_mock.get(SENT_URL, json={"shipments": []})
     aioclient_mock.post(REFRESH_URL, status=401)
     aioclient_mock.post(AUTH_URL, status=401)
     entry = account(hass)
@@ -128,6 +132,7 @@ async def test_a_password_that_stops_working_asks_for_a_new_one(hass: HomeAssist
 
 async def test_an_entry_without_a_password_asks_for_it(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.get(SHIPMENTS_URL, status=401)
+    aioclient_mock.get(SENT_URL, json={"shipments": []})
     aioclient_mock.post(REFRESH_URL, status=401)
     entry = account(hass, data={key: value for key, value in ENTRY_DATA.items() if key != "password"})
     assert not await hass.config_entries.async_setup(entry.entry_id)
@@ -142,6 +147,7 @@ async def test_an_entry_from_before_tokens_logs_in_with_its_password(
 ) -> None:
     freezer.move_to(NOW)
     aioclient_mock.get(SHIPMENTS_URL, side_effect=answers((401, None), (200, {"shipments": SHIPMENTS})))
+    aioclient_mock.get(SENT_URL, json={"shipments": []})
     aioclient_mock.post(REFRESH_URL, status=400)
     aioclient_mock.post(AUTH_URL, json=LOGIN)
     version_1 = {
@@ -158,7 +164,8 @@ async def test_an_entry_from_before_tokens_logs_in_with_its_password(
     await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.LOADED
-    assert (entry.version, entry.minor_version, entry.unique_id) == (2, 3, USERNAME)
+    assert (entry.version, entry.minor_version, entry.unique_id) == (2, 4, USERNAME)
+    assert entry.data["max_outgoing_shipments"] == 5, "the maximum it had for its packages"
     assert (entry.data["access_token"], entry.data["refresh_token"]) == (NEW_ACCESS_TOKEN, NEW_REFRESH_TOKEN)
     assert hass.states.get(ENTITY_ID) is not None
 
@@ -168,6 +175,7 @@ async def test_the_sensor_is_unavailable_while_matkahuolto_is_down(
 ) -> None:
     freezer.move_to(NOW)
     aioclient_mock.get(SHIPMENTS_URL, side_effect=answers((200, {"shipments": SHIPMENTS}), (503, None)))
+    aioclient_mock.get(SENT_URL, json={"shipments": []})
     entry = account(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
@@ -189,7 +197,7 @@ async def test_the_pickup_switch_of_an_entry_of_2_2_becomes_a_choice(hass: HomeA
     await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
-    assert entry.minor_version == 3
+    assert entry.minor_version == 4
     assert entry.data["pickup_code"] == choice
     assert "include_pickup_details" not in entry.data
 
@@ -218,3 +226,30 @@ async def test_the_entities_of_a_username_typed_with_spaces_keep_their_history(h
         f"matkahuolto_{USERNAME}_package",
         other.unique_id,
     }
+
+
+async def test_an_entry_of_2_3_gets_its_maximum_for_sent_packages_too(hass: HomeAssistant, matkahuolto: AiohttpClientMocker) -> None:
+    data = {key: value for key, value in ENTRY_DATA.items() if key != "max_outgoing_shipments"} | {"max_shipments": 8}
+    entry = account(hass, minor_version=3, data=data)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.minor_version == 4
+    assert entry.data["max_outgoing_shipments"] == 8
+
+
+async def test_sent_packages_are_not_asked_for_when_they_are_left_out(hass: HomeAssistant, matkahuolto: AiohttpClientMocker) -> None:
+    entry = account(hass, max_outgoing_shipments=0)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert not [call for call in matkahuolto.mock_calls if str(call[1]).startswith(SENT_URL)]
+
+
+async def test_sent_packages_that_can_not_be_read_fail_the_update(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    # A partial answer would drop the counts of sent packages to 0 and move the time of the latest change.
+    aioclient_mock.get(SHIPMENTS_URL, json={"shipments": SHIPMENTS})
+    aioclient_mock.get(SENT_URL, status=503)
+    entry = account(hass)
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+    assert entry.state is ConfigEntryState.SETUP_RETRY

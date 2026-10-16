@@ -14,11 +14,13 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 
 from custom_components.matkahuolto_tracking.const import DOMAIN
 
-from .conftest import ENTRY_DATA, NOW, SHIPMENTS_URL, USER_URL, USERNAME, shipment
+from .conftest import ENTRY_DATA, NOW, SENT_URL, SHIPMENTS_URL, USER_URL, USERNAME, shipment
 
 EVENT_ENTITY = "event.matkahuolto_matti_meikalainen_example_com_package"
-ON_THE_WAY = "sensor.matkahuolto_matti_meikalainen_example_com_packages_on_the_way"
-READY = "sensor.matkahuolto_matti_meikalainen_example_com_packages_ready_for_pickup"
+ON_THE_WAY = "sensor.matkahuolto_matti_meikalainen_example_com_incoming_on_the_way"
+READY = "sensor.matkahuolto_matti_meikalainen_example_com_incoming_ready_for_pickup"
+SENT_ON_THE_WAY = "sensor.matkahuolto_matti_meikalainen_example_com_sent_on_the_way"
+SENT_READY = "sensor.matkahuolto_matti_meikalainen_example_com_sent_ready_for_pickup"
 
 
 async def answer(shipments: list[dict[str, Any]]) -> AiohttpClientMockResponse:
@@ -27,7 +29,7 @@ async def answer(shipments: list[dict[str, Any]]) -> AiohttpClientMockResponse:
 
 
 def account(hass: HomeAssistant) -> MockConfigEntry:
-    entry = MockConfigEntry(domain=DOMAIN, title=USERNAME, version=2, minor_version=3, unique_id=USERNAME, data=ENTRY_DATA)
+    entry = MockConfigEntry(domain=DOMAIN, title=USERNAME, version=2, minor_version=4, unique_id=USERNAME, data=ENTRY_DATA)
     entry.add_to_hass(hass)
     return entry
 
@@ -70,6 +72,7 @@ async def test_a_package_becoming_ready_for_pickup_fires_an_event(
     shipments = [moving]
     aioclient_mock.get(USER_URL, json={"email": USERNAME})
     aioclient_mock.get(SHIPMENTS_URL, side_effect=lambda *_: answer(shipments))
+    aioclient_mock.get(SENT_URL, json={"shipments": []})
 
     await set_up(hass, freezer)
     assert hass.states.get(EVENT_ENTITY).state == "unknown"
@@ -100,6 +103,7 @@ async def test_every_change_of_one_update_fires_its_own_event(
     shipments = list(before)
     aioclient_mock.get(USER_URL, json={"email": USERNAME})
     aioclient_mock.get(SHIPMENTS_URL, side_effect=lambda *_: answer(shipments))
+    aioclient_mock.get(SENT_URL, json={"shipments": []})
     await set_up(hass, freezer)
 
     seen: list[str] = []
@@ -131,6 +135,7 @@ async def test_an_event_after_a_failed_update_does_not_come_from_unavailable(
     down = False
     aioclient_mock.get(USER_URL, json={"email": USERNAME})
     aioclient_mock.get(SHIPMENTS_URL, side_effect=lambda *_: failure("get", SHIPMENTS_URL) if down else answer(current))
+    aioclient_mock.get(SENT_URL, json={"shipments": []})
     await set_up(hass, freezer)
 
     down = True
@@ -166,6 +171,7 @@ async def test_a_package_missing_from_one_answer_is_not_new_when_it_comes_back(
     shipments = list(both)
     aioclient_mock.get(USER_URL, json={"email": USERNAME})
     aioclient_mock.get(SHIPMENTS_URL, side_effect=lambda *_: answer(shipments))
+    aioclient_mock.get(SENT_URL, json={"shipments": []})
     await set_up(hass, freezer)
     seen: list[str] = []
     hass.bus.async_listen(
@@ -192,6 +198,7 @@ async def test_a_package_first_seen_at_its_pickup_point_fires_both_events(
     shipments: list[dict[str, Any]] = []
     aioclient_mock.get(USER_URL, json={"email": USERNAME})
     aioclient_mock.get(SHIPMENTS_URL, side_effect=lambda *_: answer(shipments))
+    aioclient_mock.get(SENT_URL, json={"shipments": []})
     await set_up(hass, freezer)
     seen: list[str] = []
     hass.bus.async_listen(
@@ -209,3 +216,26 @@ async def test_a_package_first_seen_at_its_pickup_point_fires_both_events(
     await hass.async_block_till_done()
 
     assert [event for event in seen if event] == ["new_package", "ready_for_pickup"]
+
+
+async def test_sent_packages_are_counted_apart_and_events_say_which_way(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, freezer: FrozenDateTimeFactory
+) -> None:
+    received = [shipment("MH0601", 55, "2026-09-16T08:30:00")]
+    sent = [shipment("MH0602", 55, "2026-09-16T08:40:00"), shipment("MH0603", 35, "2026-09-16T08:50:00")]
+    aioclient_mock.get(USER_URL, json={"email": USERNAME})
+    aioclient_mock.get(SHIPMENTS_URL, side_effect=lambda *_: answer(received))
+    aioclient_mock.get(SENT_URL, side_effect=lambda *_: answer(sent))
+    await set_up(hass, freezer)
+
+    assert hass.states.get(ON_THE_WAY).state == "1"
+    assert hass.states.get(READY).state == "1"
+    assert hass.states.get(SENT_ON_THE_WAY).state == "2"
+    assert hass.states.get(SENT_READY).state == "1"
+
+    sent[1] = shipment("MH0603", 55, "2026-09-16T11:30:00")
+    freezer.tick(timedelta(minutes=11))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    state = hass.states.get(EVENT_ENTITY)
+    assert (state.attributes["event_type"], state.attributes["direction"]) == ("ready_for_pickup", "outgoing")

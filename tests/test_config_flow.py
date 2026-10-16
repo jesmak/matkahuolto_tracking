@@ -17,6 +17,7 @@ from .conftest import (
     NEW_ACCESS_TOKEN,
     NEW_REFRESH_TOKEN,
     PASSWORD,
+    SENT_URL,
     SHIPMENTS,
     SHIPMENTS_URL,
     SUBJECT,
@@ -28,6 +29,7 @@ SETTINGS = {
     "language": "fi",
     "prioritize_undelivered": True,
     "max_shipments": 5.0,
+    "max_outgoing_shipments": 5.0,
     "stale_shipment_day_limit": 15.0,
     "completed_shipment_day_shown": 3.0,
     "pickup_code": "none",
@@ -36,6 +38,7 @@ NEW_SETTINGS = {
     "language": "en",
     "prioritize_undelivered": False,
     "max_shipments": 10.0,
+    "max_outgoing_shipments": 0.0,
     "stale_shipment_day_limit": 30.0,
     "completed_shipment_day_shown": 1.0,
     "pickup_code": "code",
@@ -44,6 +47,7 @@ STORED_NEW_SETTINGS = {
     "language": "en",
     "prioritize_undelivered": False,
     "max_shipments": 10,
+    "max_outgoing_shipments": 0,
     "stale_shipment_day_limit": 30,
     "completed_shipment_day_shown": 1,
     "pickup_code": "code",
@@ -57,10 +61,11 @@ def expect_login(aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.post(AUTH_URL, json=LOGIN)
     aioclient_mock.get(USER_URL, json={"email": USERNAME})
     aioclient_mock.get(SHIPMENTS_URL, json={"shipments": SHIPMENTS})
+    aioclient_mock.get(SENT_URL, json={"shipments": []})
 
 
 def account(hass: HomeAssistant, **data: object) -> MockConfigEntry:
-    entry = MockConfigEntry(domain=DOMAIN, title=USERNAME, version=2, minor_version=3, unique_id=USERNAME, data={**ENTRY_DATA, **data})
+    entry = MockConfigEntry(domain=DOMAIN, title=USERNAME, version=2, minor_version=4, unique_id=USERNAME, data={**ENTRY_DATA, **data})
     entry.add_to_hass(hass)
     return entry
 

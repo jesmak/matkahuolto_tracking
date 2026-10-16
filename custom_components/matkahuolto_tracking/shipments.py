@@ -18,11 +18,13 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_COMPLETED_SHIPMENT_DAYS_SHOWN,
+    CONF_MAX_OUTGOING_SHIPMENTS,
     CONF_MAX_SHIPMENTS,
     CONF_PICKUP_CODE,
     CONF_PRIORITIZE_UNDELIVERED,
     CONF_STALE_SHIPMENT_DAY_LIMIT,
     DEFAULT_COMPLETED_SHIPMENT_DAYS_SHOWN,
+    DEFAULT_MAX_OUTGOING_SHIPMENTS,
     DEFAULT_MAX_SHIPMENTS,
     DEFAULT_PICKUP_CODE,
     DEFAULT_PRIORITIZE_UNDELIVERED,
@@ -47,11 +49,17 @@ STATUS_IN_TRANSPORT = 3
 STATUS_IN_DELIVERY = 4
 STATUS_READY_FOR_PICKUP = 5
 
+# Which way a package goes, as package-tracker-card reads it: from the list Matkahuolto gives it in.
+DIRECTION_INCOMING = "incoming"
+DIRECTION_OUTGOING = "outgoing"
+
 
 @dataclass(frozen=True)
 class PackageSettings:
     prioritize_undelivered: bool
+    # The most received and sent packages listed. 0 leaves that direction out of the list, the counts and the events.
     max_shipments: int
+    max_outgoing_shipments: int
     # Undelivered packages whose latest event is older are hidden: some stay "in delivery" for good.
     stale_shipment_day_limit: int
     completed_shipment_days_shown: int
@@ -64,6 +72,7 @@ class PackageSettings:
         return cls(
             prioritize_undelivered=bool(data.get(CONF_PRIORITIZE_UNDELIVERED, DEFAULT_PRIORITIZE_UNDELIVERED)),
             max_shipments=int(data.get(CONF_MAX_SHIPMENTS, DEFAULT_MAX_SHIPMENTS)),
+            max_outgoing_shipments=int(data.get(CONF_MAX_OUTGOING_SHIPMENTS, DEFAULT_MAX_OUTGOING_SHIPMENTS)),
             stale_shipment_day_limit=int(data.get(CONF_STALE_SHIPMENT_DAY_LIMIT, DEFAULT_STALE_SHIPMENT_DAY_LIMIT)),
             completed_shipment_days_shown=int(data.get(CONF_COMPLETED_SHIPMENT_DAYS_SHOWN, DEFAULT_COMPLETED_SHIPMENT_DAYS_SHOWN)),
             pickup_code=str(data.get(CONF_PICKUP_CODE, DEFAULT_PICKUP_CODE)),
@@ -74,7 +83,7 @@ class PackageSettings:
 class Packages:
     # When a shipment of the account last changed, hidden ones included. None when there are none.
     latest_change: datetime | None
-    # The packages to list, newest first and at most the maximum.
+    # The packages to list, newest first and at most the maximum of each direction.
     packages: list[dict[str, Any]]
     # Every package within the age limits, however many: the counts.
     current: list[dict[str, Any]]
@@ -97,23 +106,42 @@ def map_raw_status(raw_status: int) -> int:
     return STATUS_WAITING
 
 
-def build_packages(shipments: Iterable[Mapping[str, Any]], settings: PackageSettings, now: datetime) -> Packages:
-    """The packages to list: undelivered ones that aren't stale and recently delivered ones, newest first."""
+def limit_of(item: Mapping[str, Any], settings: PackageSettings) -> int:
+    """The most packages of the item's direction listed."""
+    return settings.max_outgoing_shipments if item.get("direction") == DIRECTION_OUTGOING else settings.max_shipments
+
+
+def build_packages(
+    shipments: Iterable[Mapping[str, Any]], settings: PackageSettings, now: datetime, sent: Iterable[Mapping[str, Any]] = ()
+) -> Packages:
+    """The packages to list: undelivered ones that aren't stale and recently delivered ones, newest first. shipments are
+    the received ones, sent those the account has sent. A package in both, sent to oneself, is a received one."""
     latest_change: datetime | None = None
     undelivered: list[tuple[datetime, dict[str, Any]]] = []
     delivered: list[tuple[datetime, dict[str, Any]]] = []
 
     newest: dict[str, tuple[datetime, dict[str, Any]]] = {}
-    for shipment in shipments:
+    shipments = list(shipments)
+    # A parcel sent to oneself is in both lists, and it is coming to the user, so its sent copy is left out whichever is
+    # newer. Otherwise a newer event in between the two requests would make it a sent one for an update.
+    received = {text(shipment.get("shipmentNumber")) for shipment in shipments}
+    tagged = [
+        *((DIRECTION_INCOMING, shipment) for shipment in shipments),
+        *((DIRECTION_OUTGOING, shipment) for shipment in sent if text(shipment.get("shipmentNumber")) not in received),
+    ]
+    for direction, shipment in tagged:
         changed = status_change_time(shipment)
         raw_status = parse_int(shipment.get("shipmentStatus"))
         if changed is None or raw_status is None:
             continue
+        item = package(shipment, map_raw_status(raw_status), changed, settings, direction)
+        # A direction whose maximum is 0 is left out altogether: not listed, counted, reported in events or in the time
+        # of the latest change.
+        if limit_of(item, settings) == 0:
+            continue
         if latest_change is None or changed > latest_change:
             latest_change = changed
-
-        status = map_raw_status(raw_status)
-        keep_newest(newest, changed, package(shipment, status, changed, settings))
+        keep_newest(newest, changed, item)
 
     every = {number: item for number, (_, item) in newest.items()}
     for changed, item in newest.values():
@@ -131,12 +159,20 @@ def build_packages(shipments: Iterable[Mapping[str, Any]], settings: PackageSett
     if not settings.prioritize_undelivered:
         ordered.sort(key=change_time, reverse=True)
     current = [item for _, item in ordered]
-    return Packages(latest_change, current[: settings.max_shipments], current, every)
+    # Each direction up to its own maximum, so many sent packages don't push the received ones off the list.
+    listed: list[dict[str, Any]] = []
+    taken = {False: 0, True: 0}
+    for item in current:
+        outgoing = item.get("direction") == DIRECTION_OUTGOING
+        if taken[outgoing] < limit_of(item, settings):
+            taken[outgoing] += 1
+            listed.append(item)
+    return Packages(latest_change, listed, current, every)
 
 
 def keep_newest(newest: dict[str, tuple[datetime, dict[str, Any]]], changed: datetime, item: dict[str, Any]) -> None:
-    """Keeps a package by its number, the newest copy when the account lists one twice. One without a number is left out,
-    since nothing would tell its updates apart from another's."""
+    """Keeps a package by its number, the newest copy when the account lists one twice, or the first of two as new as
+    each other. One without a number is left out, since nothing would tell its updates apart from another's."""
     number = item.get("shipment_number")
     if not number:
         return
@@ -163,21 +199,25 @@ def status_change_time(shipment: Mapping[str, Any]) -> datetime | None:
     return from_milliseconds(parse_int(shipment.get("deliveryTime"))) or from_milliseconds(parse_int(shipment.get("shipmentDate")))
 
 
-def package(shipment: Mapping[str, Any], status: int, changed: datetime, settings: PackageSettings) -> dict[str, Any]:
+def package(shipment: Mapping[str, Any], status: int, changed: datetime, settings: PackageSettings, direction: str) -> dict[str, Any]:
+    sent = direction == DIRECTION_OUTGOING
     event = shipment.get("lastEvent")
     event = event if isinstance(event, Mapping) else {}
     shipment_date = parse_int(shipment.get("shipmentDate"))
     point = shipment.get("pickupPoint") if isinstance(shipment.get("pickupPoint"), Mapping) else {}
     shipment_number = text(shipment.get("shipmentNumber"))
     return {
-        "origin": shipment.get("senderName"),
-        "origin_city": shipment.get("senderCity"),
-        "destination": shipment.get("destinationPlaceName"),
+        # The sender of a sent package is the user, so it says nothing. Its recipient is where it goes without a pickup
+        # point.
+        "origin": None if sent else shipment.get("senderName"),
+        "origin_city": None if sent else shipment.get("senderCity"),
+        "destination": shipment.get("destinationPlaceName") or (shipment.get("receiverName") if sent else None),
         "destination_city": shipment.get("receiverCity"),
         "shipment_number": shipment_number,
         "shipment_date": iso(from_milliseconds(shipment_date)),
         "status": status,
         "raw_status": shipment.get("shipmentStatus"),
+        "direction": direction,
         "latest_event": event.get("description"),
         "latest_event_city": event.get("place"),
         "latest_event_country": "FI",

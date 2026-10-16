@@ -16,6 +16,7 @@ from custom_components.matkahuolto_tracking.const import (
     PATH_AUTH,
     PATH_RECEIVED_SHIPMENTS,
     PATH_REFRESH_TOKEN,
+    PATH_SENT_SHIPMENTS,
     PATH_USER,
 )
 
@@ -47,6 +48,7 @@ ENTRY_DATA = {
     "language": "fi",
     "prioritize_undelivered": True,
     "max_shipments": 5,
+    "max_outgoing_shipments": 5,
     "stale_shipment_day_limit": 15,
     "completed_shipment_day_shown": 3,
     "pickup_code": "none",
@@ -57,6 +59,7 @@ NOW = datetime(2026, 9, 16, 9, 0, tzinfo=UTC)
 
 USER_URL = API_BASE_URL + PATH_USER
 SHIPMENTS_URL = API_BASE_URL + PATH_RECEIVED_SHIPMENTS
+SENT_URL = API_BASE_URL + PATH_SENT_SHIPMENTS
 REFRESH_URL = API_BASE_URL + PATH_REFRESH_TOKEN
 AUTH_URL = API_BASE_URL + PATH_AUTH
 # The answer to a login, in Cognito's shape.
@@ -143,5 +146,6 @@ def matkahuolto(aioclient_mock: AiohttpClientMocker) -> AiohttpClientMocker:
     """Matkahuolto's web service accepting the tokens."""
     aioclient_mock.get(USER_URL, json={"email": USERNAME})
     aioclient_mock.get(SHIPMENTS_URL, json={"shipments": SHIPMENTS})
+    aioclient_mock.get(SENT_URL, json={"shipments": []})
     aioclient_mock.post(REFRESH_URL, json={"AuthenticationResult": {"AccessToken": NEW_ACCESS_TOKEN}})
     return aioclient_mock

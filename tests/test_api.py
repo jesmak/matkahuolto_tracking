@@ -27,6 +27,7 @@ from .conftest import (
     PASSWORD,
     REFRESH_TOKEN,
     REFRESH_URL,
+    SENT_URL,
     SHIPMENTS,
     SHIPMENTS_URL,
     SUBJECT,
@@ -231,3 +232,12 @@ async def test_an_answer_that_is_not_json(hass: HomeAssistant, aioclient_mock: A
 def test_the_account_s_id_is_its_access_token_s_sub() -> None:
     assert subject_of(NEW_ACCESS_TOKEN) == SUBJECT
     assert subject_of("not a token") is None
+
+
+async def test_every_page_of_sent_shipments(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    aioclient_mock.get(SENT_URL, json={"shipments": SHIPMENTS[:2], "hasMore": True, "nextOffset": 10})
+    aioclient_mock.get(f"{SENT_URL}/10", json={"shipments": SHIPMENTS[2:3], "hasMore": False, "nextOffset": 11})
+
+    found = await client(hass).sent_shipments()
+
+    assert [shipment["shipmentNumber"] for shipment in found] == [shipment["shipmentNumber"] for shipment in SHIPMENTS[:3]]

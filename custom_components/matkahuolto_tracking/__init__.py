@@ -14,9 +14,12 @@ from homeassistant.helpers import entity_registry as er
 from .const import (
     CONF_ACCESS_TOKEN,
     CONF_INCLUDE_PICKUP_DETAILS,
+    CONF_MAX_OUTGOING_SHIPMENTS,
+    CONF_MAX_SHIPMENTS,
     CONF_PICKUP_CODE,
     CONF_REFRESH_TOKEN,
     CONF_USERNAME,
+    DEFAULT_MAX_SHIPMENTS,
     DOMAIN,
     PICKUP_CODE_CODE,
     PICKUP_CODE_NONE,
@@ -46,7 +49,8 @@ async def async_migrate_entry(hass: HomeAssistant, entry: MatkahuoltoConfigEntry
 
     Version 1 entries have an email address and password but no tokens. They get empty tokens, which
     the first update finds refused, so it logs in with the password. Entries of 2.1 get a unique id, the
-    account's email address, and the pickup switch of 2.2 entries becomes a choice.
+    account's email address, the pickup switch of 2.2 entries becomes a choice, and 2.3 entries get a maximum for sent
+    packages.
     """
     if entry.version > 2:
         return False
@@ -78,4 +82,8 @@ async def async_migrate_entry(hass: HomeAssistant, entry: MatkahuoltoConfigEntry
 
             await er.async_migrate_entries(hass, entry.entry_id, moved)
         hass.config_entries.async_update_entry(entry, data=data, minor_version=3)
+    if entry.minor_version < 4:
+        # The one maximum was for received packages, and there were no others. Sent ones get the same.
+        data = {**entry.data, CONF_MAX_OUTGOING_SHIPMENTS: entry.data.get(CONF_MAX_SHIPMENTS, DEFAULT_MAX_SHIPMENTS)}
+        hass.config_entries.async_update_entry(entry, data=data, minor_version=4)
     return True

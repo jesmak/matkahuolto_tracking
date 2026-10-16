@@ -16,6 +16,7 @@ from .conftest import NOW, SHIPMENTS, milliseconds, shipment
 SETTINGS = PackageSettings(
     prioritize_undelivered=True,
     max_shipments=5,
+    max_outgoing_shipments=5,
     stale_shipment_day_limit=15,
     completed_shipment_days_shown=3,
     pickup_code="none",
@@ -53,6 +54,7 @@ def test_package_attributes() -> None:
         "shipment_date": "2026-09-14T09:00:00+03:00",
         "status": 5,
         "raw_status": 55,
+        "direction": "incoming",
         "latest_event": "Lähetys on noudettavissa",
         "latest_event_city": "Lappeenranta",
         "latest_event_country": "FI",
@@ -237,3 +239,45 @@ def test_an_unreadable_time_is_warned_of_once(caplog: pytest.LogCaptureFixture) 
     build_packages([odd], SETTINGS, NOW)
     build_packages([odd], SETTINGS, NOW)
     assert caplog.text.count("can't be read") == 1
+
+
+def sent(number: str, raw_status: int, event_time: str) -> dict[str, Any]:
+    """A shipment the account sent, to a made-up recipient."""
+    return {**shipment(number, raw_status, event_time), "senderName": "Matti Meikäläinen", "receiverName": "Maija Mallikas"}
+
+
+def test_a_sent_package_says_so_and_names_its_recipient() -> None:
+    to_home = {**sent("MH1001", 35, "2026-09-16T08:30:00"), "destinationPlaceName": None}
+    [package] = build_packages([], SETTINGS, NOW, [to_home]).packages
+    assert package["direction"] == "outgoing"
+    assert (package["origin"], package["origin_city"]) == (None, None), "its sender is the user"
+    assert package["destination"] == "Maija Mallikas", "where it goes without a pickup point"
+    [package] = build_packages([], SETTINGS, NOW, [sent("MH1002", 55, "2026-09-16T08:30:00")]).packages
+    assert package["destination"] == "Example Market Keskusta", "the pickup point when it has one"
+
+
+def test_each_direction_is_listed_up_to_its_own_maximum() -> None:
+    received = [shipment(f"MH200{n}", 35, f"2026-09-16T0{n}:00:00") for n in range(1, 4)]
+    outgoing = [sent(f"MH300{n}", 35, f"2026-09-16T0{n}:30:00") for n in range(1, 4)]
+    packages = build_packages(received, replace(SETTINGS, max_shipments=2, max_outgoing_shipments=1), NOW, outgoing)
+    assert numbers(packages) == ["MH3003", "MH2003", "MH2002"], "newest first, two received and one sent"
+    assert len(packages.current) == 6, "the counts see all of them"
+
+
+def test_a_maximum_of_0_leaves_that_direction_out_altogether() -> None:
+    received = shipment("MH4001", 35, "2026-09-16T05:00:00")
+    outgoing = sent("MH4002", 35, "2026-09-16T08:00:00")
+    packages = build_packages([received], replace(SETTINGS, max_outgoing_shipments=0), NOW, [outgoing])
+    assert numbers(packages) == ["MH4001"]
+    assert list(packages.every) == ["MH4001"], "no events for it either"
+    assert packages.latest_change.isoformat() == "2026-09-16T05:00:00+03:00", "nor does it change the sensor's time"
+
+
+def test_a_package_sent_to_oneself_is_a_received_one() -> None:
+    # Even when its sent copy is newer, as when it moves on between the two requests.
+    received = shipment("MH5001", 35, "2026-09-16T08:30:00")
+    sent_copy = shipment("MH5001", 55, "2026-09-16T08:31:00")
+    [package] = build_packages([received], SETTINGS, NOW, [sent_copy]).packages
+    assert (package["direction"], package["status"]) == ("incoming", 3)
+    # And when received packages are left out, it is left out too, not listed as a sent one.
+    assert build_packages([received], replace(SETTINGS, max_shipments=0), NOW, [sent_copy]).every == {}

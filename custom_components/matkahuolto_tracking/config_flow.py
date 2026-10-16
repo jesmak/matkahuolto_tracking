@@ -35,6 +35,7 @@ from .const import (
     CONF_COMPLETED_SHIPMENT_DAYS_SHOWN,
     CONF_EMAIL,
     CONF_LANGUAGE,
+    CONF_MAX_OUTGOING_SHIPMENTS,
     CONF_MAX_SHIPMENTS,
     CONF_PASSWORD,
     CONF_PICKUP_CODE,
@@ -44,6 +45,7 @@ from .const import (
     CONF_SUBJECT,
     CONF_USERNAME,
     DEFAULT_COMPLETED_SHIPMENT_DAYS_SHOWN,
+    DEFAULT_MAX_OUTGOING_SHIPMENTS,
     DEFAULT_MAX_SHIPMENTS,
     DEFAULT_PICKUP_CODE,
     DEFAULT_PRIORITIZE_UNDELIVERED,
@@ -63,13 +65,16 @@ LOGIN_SCHEMA = vol.Schema(
 )
 
 DAYS_SELECTOR = NumberSelector(NumberSelectorConfig(min=0, max=365, step=1, mode=NumberSelectorMode.BOX))
+# 0 leaves that direction out altogether.
+MAX_SELECTOR = NumberSelector(NumberSelectorConfig(min=0, max=50, step=1, mode=NumberSelectorMode.BOX))
 SETTINGS_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_LANGUAGE): SelectSelector(
             SelectSelectorConfig(options=LANGUAGES, translation_key=CONF_LANGUAGE, mode=SelectSelectorMode.DROPDOWN)
         ),
         vol.Required(CONF_PRIORITIZE_UNDELIVERED): BooleanSelector(),
-        vol.Required(CONF_MAX_SHIPMENTS): NumberSelector(NumberSelectorConfig(min=1, max=50, step=1, mode=NumberSelectorMode.BOX)),
+        vol.Required(CONF_MAX_SHIPMENTS): MAX_SELECTOR,
+        vol.Required(CONF_MAX_OUTGOING_SHIPMENTS): MAX_SELECTOR,
         vol.Required(CONF_STALE_SHIPMENT_DAY_LIMIT): DAYS_SELECTOR,
         vol.Required(CONF_COMPLETED_SHIPMENT_DAYS_SHOWN): DAYS_SELECTOR,
         vol.Required(CONF_PICKUP_CODE): SelectSelector(
@@ -82,7 +87,7 @@ SETTINGS_SCHEMA = vol.Schema(
 def clean_settings(user_input: Mapping[str, Any]) -> dict[str, Any]:
     """Submitted settings, normalised for storing."""
     data = dict(user_input)
-    for key in (CONF_MAX_SHIPMENTS, CONF_STALE_SHIPMENT_DAY_LIMIT, CONF_COMPLETED_SHIPMENT_DAYS_SHOWN):
+    for key in (CONF_MAX_SHIPMENTS, CONF_MAX_OUTGOING_SHIPMENTS, CONF_STALE_SHIPMENT_DAY_LIMIT, CONF_COMPLETED_SHIPMENT_DAYS_SHOWN):
         if key in data:
             data[key] = int(data[key])
     return data
@@ -103,10 +108,11 @@ def same_account(entry: ConfigEntry, email: str, subject: str | None) -> bool:
 
 
 class MatkahuoltoConfigFlow(ConfigFlow, domain=DOMAIN):
-    # 1.x entries have no tokens, 2.1 entries no unique id, and 2.2 entries the old pickup switch.
+    # 1.x entries have no tokens, 2.1 entries no unique id, 2.2 entries the old pickup switch, and 2.3 entries no maximum
+    # for sent packages.
     # __init__.async_migrate_entry updates them all.
     VERSION = 2
-    MINOR_VERSION = 3
+    MINOR_VERSION = 4
 
     def __init__(self) -> None:
         # The logged-in account (email, password and tokens), between the login and settings steps.
@@ -172,6 +178,7 @@ class MatkahuoltoConfigFlow(ConfigFlow, domain=DOMAIN):
             CONF_LANGUAGE: self._language(),
             CONF_PRIORITIZE_UNDELIVERED: DEFAULT_PRIORITIZE_UNDELIVERED,
             CONF_MAX_SHIPMENTS: DEFAULT_MAX_SHIPMENTS,
+            CONF_MAX_OUTGOING_SHIPMENTS: DEFAULT_MAX_OUTGOING_SHIPMENTS,
             CONF_STALE_SHIPMENT_DAY_LIMIT: DEFAULT_STALE_SHIPMENT_DAY_LIMIT,
             CONF_COMPLETED_SHIPMENT_DAYS_SHOWN: DEFAULT_COMPLETED_SHIPMENT_DAYS_SHOWN,
             CONF_PICKUP_CODE: DEFAULT_PICKUP_CODE,

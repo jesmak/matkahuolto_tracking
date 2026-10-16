@@ -10,11 +10,11 @@ Home Assistant integration that follows the packages of a Matkahuolto account.
 ## What is it?
 
 A custom component that lists the coming and recently delivered packages of a
-[matkahuolto.fi](https://www.matkahuolto.fi/) account. There's no need to add packages by hand. The list comes from
-the packages sent to your account, and it's updated every 10 minutes.
+[matkahuolto.fi](https://www.matkahuolto.fi/) account, and those it has sent. There's no need to add packages by
+hand. The list comes from the packages sent to and from your account, and it's updated every 10 minutes.
 
 The sensor lists the packages in the format [package-tracker-card](https://github.com/jesmak/package-tracker-card)
-reads, so the card can show them together with packages from other tracking integrations. Two more sensors count the
+reads, so the card can show them together with packages from other tracking integrations. Four more sensors count the
 packages, and an event entity fires when one of them moves along.
 
 This is an unofficial integration. See [Data](#data) for what that means.
@@ -65,7 +65,8 @@ choose **Reconfigure** from the account's menu on the integration page.
 | ------------------------------------------ | ------- | -------------------------------------------------------------------------------- | ------------------------- |
 | Language                                   | enum    | Language of the package event descriptions, `fi` or `en`                         | Home Assistant's language |
 | Undelivered packages first                 | boolean | When there are more packages than the maximum, undelivered ones are listed first | on                        |
-| Maximum number of packages                 | number  | How many packages the sensor lists                                               | 5                         |
+| Maximum number of incoming packages        | number  | How many incoming packages the sensor lists. 0 leaves them out altogether        | 5                         |
+| Maximum number of sent packages            | number  | How many sent packages the sensor lists. 0 leaves them out altogether            | 5                         |
 | Days until undelivered packages are hidden | days    | Counted from the latest event. Some packages stay in delivery for good           | 15                        |
 | Days until delivered packages are hidden   | days    | Counted from the delivery                                                        | 3                         |
 | Pickup code                                | enum    | Don't add, or add                                                                | don't add                 |
@@ -87,8 +88,9 @@ The `packages` attribute lists the packages, and each package has these keys.
 | `shipment_number`                   | The shipment's tracking number                                                      |
 | `status`                            | The package's status, below                                                         |
 | `raw_status`                        | Matkahuolto's own status code                                                       |
-| `origin`, `origin_city`             | The sender and its city                                                             |
-| `destination`, `destination_city`   | The pickup point and the receiver's city                                            |
+| `direction`                         | `incoming`, or `outgoing` for a package sent from the account                       |
+| `origin`, `origin_city`             | The sender and its city. Empty for a package you sent                               |
+| `destination`, `destination_city`   | The pickup point, or the recipient of one you sent, and the receiver's city         |
 | `shipment_date`                     | When the package was sent                                                           |
 | `latest_event`, `latest_event_city` | The latest event and where it happened                                              |
 | `latest_event_date`                 | When the package last changed                                                       |
@@ -117,20 +119,24 @@ recorder, only the state. The sensor is unavailable while Matkahuolto can't be r
 
 ### Counts
 
-Two sensors count the packages, so a badge or an automation needs no templating. They count every package of the
+Four sensors count the packages, so a badge or an automation needs no templating. They count every package of the
 account within the days set above, also those the list has no room for.
 
-| Sensor                    | What it counts                              |
-| ------------------------- | ------------------------------------------- |
-| Packages on the way       | Everything that hasn't finished its journey |
-| Packages ready for pickup | The ones waiting at a pickup point          |
+| Sensor                    | What it counts                                                     |
+| ------------------------- | ------------------------------------------------------------------ |
+| Incoming on the way       | Incoming packages that haven't finished their journey              |
+| Incoming ready for pickup | Incoming packages waiting at a pickup point                        |
+| Sent on the way           | Packages sent from the account that haven't finished their journey |
+| Sent ready for pickup     | Sent packages waiting for the recipient at a pickup point          |
 
 ## Events
 
 An event entity, **Package**, fires once for everything that happens to a package, so an automation can act on it
 without watching the packages attribute. Several packages changing in one update fire one event each, packages the
 list has no room for included. A new package that is already ready for pickup or delivered when it is first seen fires
-`new_package` and then that status's event, so an automation listening for either hears of it.
+`new_package` and then that status's event, so an automation listening for either hears of it. Packages sent from
+the account fire events too, with `direction` set to `outgoing`, so an automation about your own parcels leaves them
+out with a condition, as in the example below.
 
 | Event type         | When it fires                                 |
 | ------------------ | --------------------------------------------- |
@@ -139,7 +145,7 @@ list has no room for included. A new package that is already ready for pickup or
 | `ready_for_pickup` | It is waiting to be picked up                 |
 | `delivered`        | It has been delivered                         |
 
-The event carries the package it happened to, with `shipment_number`, `status`, `raw_status`, `origin`,
+The event carries the package it happened to, with `shipment_number`, `status`, `raw_status`, `direction`, `origin`,
 `destination`, `destination_city`, `latest_event`, `latest_event_city`, `latest_event_date` and `source`.
 
 Nothing fires for the packages that are already there when Home Assistant starts, or when the integration is reloaded,
@@ -148,8 +154,9 @@ one of Matkahuolto's answers and back in the next is compared with how it was, n
 
 ## Examples
 
-A notification for every package that can be picked up. The trigger watches every event, not only a change of its
-type, so the second package ready in a row isn't missed. `queued` keeps the events of one update from being dropped.
+A notification for every package that can be picked up, leaving out the ones sent from the account. The trigger
+watches every event, not only a change of its type, so the second package ready in a row isn't missed. `queued` keeps
+the events of one update from being dropped.
 
 
 ```yaml
@@ -167,6 +174,12 @@ automation:
         entity_id: event.matkahuolto_matti_meikalainen_example_com_package
         attribute: event_type
         state: ready_for_pickup
+      - condition: not
+        conditions:
+          - condition: state
+            entity_id: event.matkahuolto_matti_meikalainen_example_com_package
+            attribute: direction
+            state: outgoing
     actions:
       - action: notify.mobile_app_phone
         data:
@@ -181,6 +194,17 @@ title: Packages
 entity: sensor.matkahuolto_matti_meikalainen_example_com
 pickup_code: toggle
 ```
+
+## Upgrading from 2.2
+
+The integration now lists the packages sent from the account too. The one **Maximum number of packages** became two,
+one for incoming packages and one for sent ones. Both take the number the account had, and a maximum of 0 leaves sent
+packages out, so that they aren't even asked for. **Packages on the way** and **Packages ready for pickup** are now
+**Incoming on the way** and **Incoming ready for pickup**, and two new sensors count the sent ones. Their entity IDs
+stay as they were. Events of sent packages fire with `direction` set to `outgoing`. Add the condition in the example
+above to an automation that should leave them out.
+
+Logging in again asks for the email address too, filled in with the one in use.
 
 ## Upgrading from 2.1 and earlier
 

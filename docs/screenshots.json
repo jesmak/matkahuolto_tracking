@@ -12,6 +12,7 @@
                     {
                         "origin": "Example Electronics",
                         "origin_city": "Jyväskylä",
+                        "recipient": null,
                         "destination": "Example Kiosk Hervanta",
                         "destination_city": "Tampere",
                         "shipment_number": "MH00010000000000011",
@@ -43,6 +44,7 @@
                     {
                         "origin": "Example Garden Shop",
                         "origin_city": "Kuopio",
+                        "recipient": null,
                         "destination": "Example Service Point Keskusta",
                         "destination_city": "Tampere",
                         "shipment_number": "MH00010000000000022",
@@ -72,8 +74,41 @@
                         "tracking_url": "https://www.matkahuolto.fi/seuranta?parcelNumber=MH00010000000000022"
                     },
                     {
+                        "origin": null,
+                        "origin_city": null,
+                        "recipient": "Maija Mallikas",
+                        "destination": "Example Service Point Toppila",
+                        "destination_city": "Oulu",
+                        "shipment_number": "MH00010000000000044",
+                        "shipment_date": "2026-10-13T16:20:00+03:00",
+                        "status": 3,
+                        "direction": "outgoing",
+                        "raw_status": 35,
+                        "latest_event": "The shipment is on its way",
+                        "latest_event_city": "Tampere",
+                        "latest_event_country": "FI",
+                        "latest_event_date": "2026-10-14T07:30:00+03:00",
+                        "estimated_delivery": "2026-10-15T14:00:00+03:00",
+                        "pickup_deadline": null,
+                        "weight": 1.2,
+                        "package_count": 1,
+                        "pickup_point": {
+                            "name": "Example Service Point Toppila",
+                            "street": "Esimerkkikatu 12",
+                            "postal_code": "90150",
+                            "city": "Oulu",
+                            "type": null,
+                            "available": null
+                        },
+                        "pickup_code": null,
+                        "pickup_qr": null,
+                        "source": "Matkahuolto",
+                        "tracking_url": "https://www.matkahuolto.fi/seuranta?parcelNumber=MH00010000000000044"
+                    },
+                    {
                         "origin": "Example Sports",
                         "origin_city": "Oulu",
+                        "recipient": null,
                         "destination": null,
                         "destination_city": "Tampere",
                         "shipment_number": "MH00010000000000033",

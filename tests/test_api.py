@@ -74,6 +74,27 @@ async def test_a_login_answer_without_tokens(hass: HomeAssistant, aioclient_mock
     assert not isinstance(error.value, MatkahuoltoAuthError)
 
 
+@pytest.mark.parametrize("error", [TimeoutError(), aiohttp.ClientConnectionError("Connection refused")], ids=["timeout", "message"])
+@pytest.mark.parametrize("request_", ["login", "shipments", "refresh"])
+async def test_an_error_without_a_message_is_named(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, request_: str, error: Exception
+) -> None:
+    cause = str(error) or "TimeoutError"
+    with pytest.raises(MatkahuoltoError) as raised:
+        if request_ == "login":
+            aioclient_mock.post(AUTH_URL, exc=error)
+            await log_in(async_get_clientsession(hass), USERNAME, PASSWORD)
+        elif request_ == "shipments":
+            aioclient_mock.get(SHIPMENTS_URL, exc=error)
+            await client(hass).received_shipments()
+        else:
+            aioclient_mock.get(SHIPMENTS_URL, status=401)
+            aioclient_mock.post(REFRESH_URL, exc=error)
+            await client(hass).received_shipments()
+    purpose = {"login": " for logging in", "shipments": "", "refresh": " for a new access token"}[request_]
+    assert str(raised.value) == f"Matkahuolto couldn't be reached{purpose}: {cause}"
+
+
 async def test_shipments_are_fetched_with_the_access_token(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.get(SHIPMENTS_URL, json={"shipments": SHIPMENTS})
     assert len(await client(hass).received_shipments()) == len(SHIPMENTS)

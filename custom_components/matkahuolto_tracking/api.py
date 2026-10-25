@@ -93,7 +93,8 @@ async def log_in(session: aiohttp.ClientSession, username: str, password: str) -
             status = response.status
             body = await response.json(content_type=None) if status == 200 else await response.text()
     except (aiohttp.ClientError, TimeoutError) as err:
-        raise MatkahuoltoError(f"Matkahuolto couldn't be reached for logging in: {err}") from err
+        # A timeout's message is empty, and the coordinator logs only the first failure, so the type is the cause.
+        raise MatkahuoltoError(f"Matkahuolto couldn't be reached for logging in: {str(err) or type(err).__name__}") from err
     except ValueError as err:
         raise MatkahuoltoError(f"Matkahuolto's login answer couldn't be read: {err}") from err
 
@@ -191,7 +192,7 @@ class MatkahuoltoClient:
                     return response.status, None
                 return response.status, await response.json(content_type=None)
         except (aiohttp.ClientError, TimeoutError) as err:
-            raise MatkahuoltoError(f"Matkahuolto couldn't be reached: {err}") from err
+            raise MatkahuoltoError(f"Matkahuolto couldn't be reached: {str(err) or type(err).__name__}") from err
         except ValueError as err:
             raise MatkahuoltoError(f"Matkahuolto's answer couldn't be read: {err}") from err
 
@@ -226,7 +227,7 @@ class MatkahuoltoClient:
                 status = response.status
                 body = await response.json(content_type=None) if status == 200 else None
         except (aiohttp.ClientError, TimeoutError) as err:
-            raise MatkahuoltoError(f"Matkahuolto couldn't be reached for a new access token: {err}") from err
+            raise MatkahuoltoError(f"Matkahuolto couldn't be reached for a new access token: {str(err) or type(err).__name__}") from err
         except ValueError as err:
             raise MatkahuoltoError(f"Matkahuolto's answer to refreshing the access token couldn't be read: {err}") from err
 

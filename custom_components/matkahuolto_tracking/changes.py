@@ -33,6 +33,7 @@ EVENT_KEYS = (
     "raw_status",
     "direction",
     "origin",
+    "recipient",
     "destination",
     "destination_city",
     "latest_event",

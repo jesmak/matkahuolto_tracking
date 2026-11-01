@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -53,6 +54,8 @@ class MatkahuoltoCoordinator(DataUpdateCoordinator[Packages]):
             entry.data.get(CONF_EMAIL) or entry.data[CONF_USERNAME],
             entry.data.get(CONF_PASSWORD),
         )
+        # When the packages were last read from Matkahuolto, whether or not anything had changed.
+        self.last_checked: datetime | None = None
 
     @callback
     def _save_tokens(self, access_token: str, refresh_token: str) -> None:
@@ -90,4 +93,6 @@ class MatkahuoltoCoordinator(DataUpdateCoordinator[Packages]):
             raise ConfigEntryAuthFailed(str(err)) from err
         except MatkahuoltoError as err:
             raise UpdateFailed(str(err)) from err
-        return build_packages(received, self.settings, dt_util.now(), sent)
+        packages = build_packages(received, self.settings, dt_util.now(), sent)
+        self.last_checked = dt_util.utcnow()
+        return packages

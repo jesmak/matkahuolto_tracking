@@ -115,7 +115,9 @@ The `packages` attribute lists the packages, and each package has these keys.
 | `5`      | Ready for pickup        | 50–59               |
 | `0`      | Delivered               | 60 and above        |
 
-A package delivered home has no pickup point. Times are ISO 8601 with the time zone. The packages aren't stored in the
+The `last_checked` attribute is when the packages were last read from Matkahuolto, whether or not anything had changed.
+
+A package delivered home has no pickup point. Times are ISO 8601 with the time zone. Neither attribute is stored in the
 recorder, only the state. The sensor is unavailable while Matkahuolto can't be reached.
 
 ### Counts

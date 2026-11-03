@@ -1,6 +1,7 @@
 {
   "domain": "matkahuolto_tracking",
   "name": "Matkahuolto package tracking",
+  "categories": ["productivity_information"],
   "codeowners": [
     "@jesmak"
   ],

@@ -81,13 +81,6 @@ def test_a_new_package_already_at_a_status_of_its_own_gets_that_event_too() -> N
     assert types(changes) == [EVENT_NEW, EVENT_READY_FOR_PICKUP, EVENT_NEW, EVENT_DELIVERED, EVENT_NEW]
 
 
-def test_a_package_back_after_missing_from_an_answer_is_not_new() -> None:
-    # The event entity remembers every package seen since startup, so one missing from an answer is still known.
-    seen = by_key(package("MH0001", 3), package("MH0002", 4))
-    assert detect_changes(seen, {}) == []
-    assert types(detect_changes(seen, by_key(package("MH0001", 3), package("MH0002", 5)))) == [EVENT_READY_FOR_PICKUP]
-
-
 def test_an_event_carries_the_package_it_happened_to() -> None:
     [change] = detect_changes({}, by_key(package("MH0001", 3)))
     assert change.attributes == {

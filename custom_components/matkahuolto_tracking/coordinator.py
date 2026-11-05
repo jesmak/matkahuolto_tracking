@@ -13,13 +13,14 @@ from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .api import MatkahuoltoAuthError, MatkahuoltoClient, MatkahuoltoError, MatkahuoltoPasswordRefusedError
+from .api import MatkahuoltoAuthError, MatkahuoltoClient, MatkahuoltoError, MatkahuoltoPasswordRefusedError, subject_of
 from .const import (
     CONF_ACCESS_TOKEN,
     CONF_EMAIL,
     CONF_LANGUAGE,
     CONF_PASSWORD,
     CONF_REFRESH_TOKEN,
+    CONF_SUBJECT,
     CONF_USERNAME,
     DOMAIN,
     UPDATE_INTERVAL,
@@ -93,6 +94,10 @@ class MatkahuoltoCoordinator(DataUpdateCoordinator[Packages]):
             raise ConfigEntryAuthFailed(str(err)) from err
         except MatkahuoltoError as err:
             raise UpdateFailed(str(err)) from err
+        # Entries from before the account's id was saved get it from the working token, so that logging in again
+        # recognises the account by it and a changed email can be given.
+        if CONF_SUBJECT not in self.config_entry.data and (subject := subject_of(self.client.access_token)):
+            self.hass.config_entries.async_update_entry(self.config_entry, data={**self.config_entry.data, CONF_SUBJECT: subject})
         packages = build_packages(received, self.settings, dt_util.now(), sent)
         self.last_checked = dt_util.utcnow()
         return packages

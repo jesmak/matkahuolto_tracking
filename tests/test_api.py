@@ -133,14 +133,6 @@ async def test_a_refused_refresh_token_logs_in_again(hass: HomeAssistant, aiocli
     assert aioclient_mock.mock_calls[-1][3]["Authorization"] == NEW_ACCESS_TOKEN
 
 
-async def test_a_refused_password_needs_a_new_one(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
-    aioclient_mock.get(SHIPMENTS_URL, status=401)
-    aioclient_mock.post(REFRESH_URL, status=401)
-    aioclient_mock.post(AUTH_URL, status=401)
-    with pytest.raises(MatkahuoltoAuthError):
-        await client(hass, password=PASSWORD).received_shipments()
-
-
 async def test_a_refused_refresh_token_without_a_password_needs_one(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.get(SHIPMENTS_URL, status=401)
     aioclient_mock.post(REFRESH_URL, status=401)

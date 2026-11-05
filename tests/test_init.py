@@ -28,6 +28,7 @@ from .conftest import (
     SENT_URL,
     SHIPMENTS,
     SHIPMENTS_URL,
+    SUBJECT,
     USERNAME,
     answers,
 )
@@ -67,6 +68,7 @@ async def test_the_sensor_lists_the_packages(hass: HomeAssistant, matkahuolto: A
         "MH0003",
     ]
     assert er.async_get(hass).async_get(ENTITY_ID).unique_id == f"matkahuolto_{USERNAME}", "as in earlier versions"
+    assert USERNAME not in entry.runtime_data.name, "update errors in the log don't name the account"
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert entry.state is ConfigEntryState.NOT_LOADED
@@ -79,6 +81,15 @@ async def test_an_entry_of_an_earlier_version_gets_a_unique_id(hass: HomeAssista
 
     assert entry.state is ConfigEntryState.LOADED
     assert (entry.minor_version, entry.unique_id) == (4, USERNAME)
+
+
+async def test_an_entry_without_the_account_s_id_gets_it_from_its_token(hass: HomeAssistant, matkahuolto: AiohttpClientMocker) -> None:
+    entry = account(hass, access_token=NEW_ACCESS_TOKEN)
+    assert "subject" not in entry.data
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.data["subject"] == SUBJECT
 
 
 async def test_a_refreshed_access_token_is_saved(
@@ -194,8 +205,8 @@ async def test_the_pickup_switch_of_an_entry_of_2_2_becomes_a_choice(hass: HomeA
     if switch is not None:
         data["include_pickup_details"] = switch
     entry = account(hass, minor_version=2, data=data)
-    await hass.config_entries.async_setup(entry.entry_id)
-    await hass.async_block_till_done()
+
+    assert await async_migrate_entry(hass, entry)
 
     assert entry.minor_version == 4
     assert entry.data["pickup_code"] == choice
@@ -204,8 +215,8 @@ async def test_the_pickup_switch_of_an_entry_of_2_2_becomes_a_choice(hass: HomeA
 
 async def test_a_username_typed_with_spaces_is_stripped(hass: HomeAssistant) -> None:
     entry = account(hass, minor_version=2, username=f"  {USERNAME} ")
-    await hass.config_entries.async_setup(entry.entry_id)
-    await hass.async_block_till_done()
+
+    assert await async_migrate_entry(hass, entry)
 
     assert entry.data["username"] == USERNAME
 

@@ -232,7 +232,8 @@ class MatkahuoltoClient:
             raise MatkahuoltoError(f"Matkahuolto's answer to refreshing the access token couldn't be read: {err}") from err
 
         # Only a 400 or 401, or an answer without a token, says the refresh token is gone. A server error, a 429 or a
-        # firewall's 403 says nothing about it: try again at the next update.
+        # firewall's 403 says nothing about it: try again at the next update. Which status a spent refresh token gets
+        # hasn't been seen. At worst a wrong guess costs one login with the password.
         access_token, refresh_token = _tokens(body)
         if access_token is None:
             if status in (200, 400, 401):
@@ -240,7 +241,7 @@ class MatkahuoltoClient:
             raise MatkahuoltoError(f"Matkahuolto couldn't refresh the access token (status {status})")
 
         self._access_token = access_token
-        # A rotated refresh token replaces the old one, which stops working after a while.
+        # A refresh token in the answer replaces the old one. Whether Matkahuolto ever rotates it hasn't been seen.
         if refresh_token is not None:
             self._refresh_token = refresh_token
         _LOGGER.debug("Refreshed the access token")

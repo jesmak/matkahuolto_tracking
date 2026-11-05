@@ -1,6 +1,8 @@
 {
   "name": "Matkahuolto package tracking",
   "render_readme": true,
+  "zip_release": true,
+  "filename": "matkahuolto_tracking.zip",
   "country": "FI",
   "homeassistant": "2026.9.3"
 }

@@ -2,7 +2,7 @@
 
 Home Assistant integration that follows the packages of a Matkahuolto account.
 
-[![GitHub Release][releases-shield]][releases] [![GitHub Release Date][release-date-shield]][releases] [![Marketplace][marketplace-shield]][marketplace] [![License][license-shield]](LICENSE)
+[![GitHub Release][releases-shield]][releases] [![GitHub Release Date][release-date-shield]][releases] [![Downloads][downloads-shield]][releases] [![Marketplace][marketplace-shield]][marketplace] [![License][license-shield]](LICENSE)
 
 <img src="https://raw.githubusercontent.com/jesmak/matkahuolto_tracking/main/docs/images/dashboard-light.png#gh-light-mode-only" width="560" alt="A dashboard with the counts of incoming packages on the way and ready for pickup, and package-tracker-card listing a package ready for pickup with its code and deadline, one sent to someone else, one on its way and one delivered, each marked incoming or sent">
 <img src="https://raw.githubusercontent.com/jesmak/matkahuolto_tracking/main/docs/images/dashboard-dark.png#gh-dark-mode-only" width="560" alt="A dashboard with the counts of incoming packages on the way and ready for pickup, and package-tracker-card listing a package ready for pickup with its code and deadline, one sent to someone else, one on its way and one delivered, each marked incoming or sent">
@@ -270,6 +270,7 @@ MIT, see [LICENSE](LICENSE).
 [releases-shield]: https://img.shields.io/github/release/jesmak/matkahuolto_tracking.svg?style=for-the-badge
 [release-date-shield]: https://img.shields.io/github/release-date/jesmak/matkahuolto_tracking?style=for-the-badge
 [releases]: https://github.com/jesmak/matkahuolto_tracking/releases
+[downloads-shield]: https://img.shields.io/github/downloads/jesmak/matkahuolto_tracking/total.svg?style=for-the-badge
 [marketplace-shield]: https://img.shields.io/badge/Marketplace-Custom-orange.svg?style=for-the-badge
 [marketplace]: https://my.home-assistant.io/redirect/marketplace_repository/?owner=jesmak&repository=matkahuolto_tracking&category=integration
 [license-shield]: https://img.shields.io/github/license/jesmak/matkahuolto_tracking.svg?style=for-the-badge

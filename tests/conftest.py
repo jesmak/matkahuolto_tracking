@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
-from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker, AiohttpClientMockResponse
+from pytest_homeassistant.test_util.aiohttp import AiohttpClientMocker, AiohttpClientMockResponse
 
 from custom_components.matkahuolto_tracking.const import (
     API_BASE_URL,
@@ -73,11 +73,6 @@ LOGIN = {
         "IdToken": "id-token",
     },
 }
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(enable_custom_integrations: None) -> None:
-    """Lets Home Assistant load integrations from custom_components/."""
 
 
 def milliseconds(value: datetime) -> int:

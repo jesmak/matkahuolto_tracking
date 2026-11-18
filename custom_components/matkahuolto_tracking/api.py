@@ -177,7 +177,9 @@ class MatkahuoltoClient:
             if status == 401:
                 raise MatkahuoltoAuthError("Matkahuolto refused the refreshed access token")
         if status != 200:
-            raise MatkahuoltoError(f"Matkahuolto answered with status {status}")
+            # The answer's text tells a fault of Matkahuolto's own apart from a request it didn't accept: both can be a 400.
+            said = " ".join(body.split())[:100]
+            raise MatkahuoltoError(f"Matkahuolto answered with status {status}" + (f" ({said})" if said else ""))
         return body
 
     async def _fetch(self, path: str) -> tuple[int, Any]:
@@ -189,7 +191,7 @@ class MatkahuoltoClient:
                 timeout=TIMEOUT,
             ) as response:
                 if response.status != 200:
-                    return response.status, None
+                    return response.status, await response.text()
                 return response.status, await response.json(content_type=None)
         except (aiohttp.ClientError, TimeoutError) as err:
             raise MatkahuoltoError(f"Matkahuolto couldn't be reached: {str(err) or type(err).__name__}") from err

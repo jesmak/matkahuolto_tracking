@@ -160,6 +160,18 @@ async def test_server_errors_are_not_token_problems(
     assert not isinstance(error.value, MatkahuoltoAuthError)
 
 
+async def test_an_error_carries_what_matkahuolto_said(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    aioclient_mock.get(SHIPMENTS_URL, status=400, text="No email\n in user data" + "!" * 200)
+    with pytest.raises(MatkahuoltoError, match=r"status 400 \(No email in user data!{79}\)$"):
+        await client(hass).received_shipments()
+
+
+async def test_an_error_without_a_text_has_only_its_status(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    aioclient_mock.get(SHIPMENTS_URL, status=500, text=" ")
+    with pytest.raises(MatkahuoltoError, match=r"status 500$"):
+        await client(hass).received_shipments()
+
+
 async def test_connection_errors(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.get(SHIPMENTS_URL, exc=aiohttp.ClientError("connection reset"))
     with pytest.raises(MatkahuoltoError):
